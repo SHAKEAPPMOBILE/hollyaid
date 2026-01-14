@@ -1,0 +1,152 @@
+import React, { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Calendar, Clock, DollarSign, Star, Video } from 'lucide-react';
+import BookingModal from './BookingModal';
+
+interface Specialist {
+  id: string;
+  full_name: string;
+  email: string;
+  specialty: string;
+  bio: string | null;
+  avatar_url: string | null;
+  hourly_rate: number;
+}
+
+const SpecialistsGrid: React.FC = () => {
+  const [specialists, setSpecialists] = useState<Specialist[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedSpecialist, setSelectedSpecialist] = useState<Specialist | null>(null);
+
+  useEffect(() => {
+    fetchSpecialists();
+  }, []);
+
+  const fetchSpecialists = async () => {
+    const { data, error } = await supabase
+      .from('specialists')
+      .select('*')
+      .eq('is_active', true);
+
+    if (!error && data) {
+      setSpecialists(data);
+    }
+    setLoading(false);
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <Card key={i} className="animate-pulse">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-muted" />
+                <div className="space-y-2 flex-1">
+                  <div className="h-5 bg-muted rounded w-3/4" />
+                  <div className="h-4 bg-muted rounded w-1/2" />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-20 bg-muted rounded" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (specialists.length === 0) {
+    return (
+      <Card className="text-center py-12">
+        <CardContent>
+          <Calendar className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No Specialists Available</h3>
+          <p className="text-muted-foreground">
+            Check back soon for available wellness specialists.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {specialists.map((specialist) => (
+          <Card 
+            key={specialist.id} 
+            className="group hover:shadow-wellness transition-all duration-300 border-0 shadow-soft"
+          >
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-4">
+                <Avatar className="w-16 h-16 ring-2 ring-primary/10">
+                  <AvatarImage src={specialist.avatar_url || ''} alt={specialist.full_name} />
+                  <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                    {getInitials(specialist.full_name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <CardTitle className="text-lg group-hover:text-primary transition-colors">
+                    {specialist.full_name}
+                  </CardTitle>
+                  <Badge variant="secondary" className="mt-1">
+                    {specialist.specialty}
+                  </Badge>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {specialist.bio && (
+                <CardDescription className="line-clamp-3">
+                  {specialist.bio}
+                </CardDescription>
+              )}
+              <div className="flex items-center justify-between pt-2">
+                <div className="flex items-center gap-1 text-primary font-semibold">
+                  <DollarSign size={18} />
+                  <span>${specialist.hourly_rate}/hour</span>
+                </div>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="wellness" 
+                      size="sm"
+                      onClick={() => setSelectedSpecialist(specialist)}
+                    >
+                      <Calendar size={16} />
+                      Book Now
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>Book with {specialist.full_name}</DialogTitle>
+                    </DialogHeader>
+                    <BookingModal specialist={specialist} onClose={() => setSelectedSpecialist(null)} />
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </>
+  );
+};
+
+export default SpecialistsGrid;
