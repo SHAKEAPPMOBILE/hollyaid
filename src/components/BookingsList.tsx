@@ -14,15 +14,16 @@ interface Booking {
   zoom_link: string | null;
   notes: string | null;
   created_at: string;
+  slot_id: string;
   slot: {
     start_time: string;
     end_time: string;
-  };
+  } | null;
   specialist: {
     full_name: string;
     specialty: string;
     hourly_rate: number;
-  };
+  } | null;
 }
 
 const BookingsList: React.FC = () => {
@@ -46,6 +47,7 @@ const BookingsList: React.FC = () => {
         zoom_link,
         notes,
         created_at,
+        slot_id,
         slot:availability_slots(start_time, end_time),
         specialist:specialists(full_name, specialty, hourly_rate)
       `)
@@ -182,7 +184,7 @@ const BookingsList: React.FC = () => {
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => cancelBooking(booking.id, booking.slot?.id || '')}
+                    onClick={() => cancelBooking(booking.id, booking.slot_id)}
                   >
                     Cancel
                   </Button>
