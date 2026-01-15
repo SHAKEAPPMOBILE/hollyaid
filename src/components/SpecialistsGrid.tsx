@@ -119,7 +119,6 @@ const SpecialistsGrid: React.FC = () => {
               )}
               <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center gap-1 text-primary font-semibold">
-                  <DollarSign size={18} />
                   <span>${specialist.hourly_rate}/hour</span>
                 </div>
                 <Dialog>
