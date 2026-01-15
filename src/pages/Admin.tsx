@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,9 +12,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   ArrowLeft, Plus, Users, Building2, Calendar, 
-  Edit, Trash2, UserPlus, Clock
+  Edit, Trash2, UserPlus, Clock, Upload, X
 } from 'lucide-react';
 
 interface Specialist {
@@ -25,6 +26,7 @@ interface Specialist {
   bio: string | null;
   hourly_rate: number;
   is_active: boolean;
+  avatar_url: string | null;
 }
 
 const Admin: React.FC = () => {
@@ -44,6 +46,9 @@ const Admin: React.FC = () => {
   const [bio, setBio] = useState('');
   const [hourlyRate, setHourlyRate] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!authLoading) {
@@ -90,9 +95,61 @@ const Admin: React.FC = () => {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select an image under 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const clearAvatar = () => {
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleAddSpecialist = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+
+    let avatarUrl: string | null = null;
+
+    // Upload avatar if one was selected
+    if (avatarFile) {
+      const fileExt = avatarFile.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('specialist-avatars')
+        .upload(fileName, avatarFile);
+
+      if (uploadError) {
+        toast({
+          title: "Failed to upload image",
+          description: uploadError.message,
+          variant: "destructive",
+        });
+        setSubmitting(false);
+        return;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('specialist-avatars')
+        .getPublicUrl(fileName);
+      
+      avatarUrl = urlData.publicUrl;
+    }
 
     const { error } = await supabase
       .from('specialists')
@@ -103,6 +160,7 @@ const Admin: React.FC = () => {
         bio: bio || null,
         hourly_rate: parseFloat(hourlyRate),
         is_active: true,
+        avatar_url: avatarUrl,
       });
 
     if (error) {
@@ -158,6 +216,7 @@ const Admin: React.FC = () => {
     setSpecialty('');
     setBio('');
     setHourlyRate('');
+    clearAvatar();
   };
 
   if (authLoading || loading) {
@@ -260,6 +319,59 @@ const Admin: React.FC = () => {
                   <DialogTitle>Add New Specialist</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleAddSpecialist} className="space-y-4 mt-4">
+                  {/* Avatar Upload */}
+                  <div className="space-y-2">
+                    <Label>Profile Photo</Label>
+                    <div className="flex items-center gap-4">
+                      {avatarPreview ? (
+                        <div className="relative">
+                          <Avatar className="h-20 w-20">
+                            <AvatarImage src={avatarPreview} />
+                            <AvatarFallback>
+                              {fullName.split(' ').map(n => n[0]).join('').toUpperCase() || 'SP'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                            onClick={clearAvatar}
+                          >
+                            <X size={12} />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div 
+                          className="h-20 w-20 rounded-full border-2 border-dashed border-muted-foreground/25 flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <Upload className="text-muted-foreground" size={24} />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleFileChange}
+                          accept="image/*"
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          {avatarPreview ? 'Change Photo' : 'Upload Photo'}
+                        </Button>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          JPG, PNG or GIF. Max 5MB.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
                   <div className="space-y-2">
                     <Label htmlFor="full-name">Full Name</Label>
                     <Input
@@ -331,7 +443,7 @@ const Admin: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
+                    <TableHead>Specialist</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Specialty</TableHead>
                     <TableHead>Rate</TableHead>
@@ -342,7 +454,17 @@ const Admin: React.FC = () => {
                 <TableBody>
                   {specialists.map((specialist) => (
                     <TableRow key={specialist.id}>
-                      <TableCell className="font-medium">{specialist.full_name}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-9 w-9">
+                            <AvatarImage src={specialist.avatar_url || undefined} />
+                            <AvatarFallback>
+                              {specialist.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="font-medium">{specialist.full_name}</span>
+                        </div>
+                      </TableCell>
                       <TableCell>{specialist.email}</TableCell>
                       <TableCell>{specialist.specialty}</TableCell>
                       <TableCell>${specialist.hourly_rate}/hr</TableCell>
