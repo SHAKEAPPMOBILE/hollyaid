@@ -9,12 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building2, Users, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Building2, Users, AlertCircle, CheckCircle2, CreditCard, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const Auth: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user } = useAuth();
   const { toast } = useToast();
   
   const [isLogin, setIsLogin] = useState(true);
@@ -24,6 +24,7 @@ const Auth: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [emailError, setEmailError] = useState('');
+  const [redirectingToPayment, setRedirectingToPayment] = useState(false);
 
   const validateCompanyEmail = (email: string) => {
     if (!email) {
@@ -49,13 +50,33 @@ const Auth: React.FC = () => {
         description: error.message,
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Welcome back!",
-        description: "You've been logged in successfully.",
-      });
-      navigate('/dashboard');
+      setLoading(false);
+      return;
     }
+
+    // Check user roles to redirect appropriately
+    const { data: { user: loggedInUser } } = await supabase.auth.getUser();
+    
+    if (loggedInUser) {
+      // Check if specialist
+      const { data: specialist } = await supabase
+        .from('specialists')
+        .select('id')
+        .eq('user_id', loggedInUser.id)
+        .single();
+
+      if (specialist) {
+        navigate('/specialist-dashboard');
+        setLoading(false);
+        return;
+      }
+    }
+
+    toast({
+      title: "Welcome back!",
+      description: "You've been logged in successfully.",
+    });
+    navigate('/dashboard');
     setLoading(false);
   };
 
@@ -100,17 +121,18 @@ const Auth: React.FC = () => {
     }
 
     // Get the user
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user: newUser } } = await supabase.auth.getUser();
     
-    if (user) {
-      // Create the company
+    if (newUser) {
+      // Create the company with unpaid status
       const domain = getEmailDomain(email);
       const { error: companyError } = await supabase
         .from('companies')
         .insert({
           name: companyName,
           email_domain: domain,
-          admin_user_id: user.id,
+          admin_user_id: newUser.id,
+          subscription_status: 'unpaid',
         });
 
       if (companyError) {
@@ -119,25 +141,58 @@ const Auth: React.FC = () => {
           description: companyError.message,
           variant: "destructive",
         });
-      } else {
-        // Add company_admin role
-        await supabase
-          .from('user_roles')
-          .insert({
-            user_id: user.id,
-            role: 'company_admin',
-          });
+        setLoading(false);
+        return;
+      }
 
-        toast({
-          title: "Welcome to WellnessHub!",
-          description: "Your company has been registered. You can now invite employees.",
+      // Add company_admin role
+      await supabase
+        .from('user_roles')
+        .insert({
+          user_id: newUser.id,
+          role: 'company_admin',
         });
+
+      // Redirect to Stripe checkout
+      setRedirectingToPayment(true);
+      
+      try {
+        const { data, error } = await supabase.functions.invoke('create-checkout');
+        
+        if (error) throw error;
+        
+        if (data?.url) {
+          window.location.href = data.url;
+        } else {
+          throw new Error('No checkout URL received');
+        }
+      } catch (checkoutError: any) {
+        toast({
+          title: "Payment setup failed",
+          description: checkoutError.message || "Please try again later.",
+          variant: "destructive",
+        });
+        setRedirectingToPayment(false);
+        // Still navigate to dashboard - they can pay later
         navigate('/dashboard');
       }
     }
     
     setLoading(false);
   };
+
+  if (redirectingToPayment) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+        <Logo size="md" />
+        <div className="mt-8 text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-lg font-medium">Setting up your payment...</p>
+          <p className="text-muted-foreground">You'll be redirected to complete your subscription.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -279,15 +334,29 @@ const Auth: React.FC = () => {
                       className="w-full"
                       disabled={loading || !!emailError}
                     >
-                      {loading ? 'Creating Account...' : 'Register Company'}
+                      <CreditCard size={16} className="mr-2" />
+                      {loading ? 'Creating Account...' : 'Register & Pay $99/month'}
                     </Button>
                     <p className="text-xs text-muted-foreground text-center mt-4">
-                      By registering, your company will have access to invite up to 100 employees.
-                      A subscription fee applies.
+                      Your company will have access to invite up to 100 employees after payment.
                     </p>
                   </form>
                 </TabsContent>
               </Tabs>
+
+              <div className="mt-6 pt-4 border-t">
+                <p className="text-sm text-center text-muted-foreground mb-3">
+                  Are you an employee?
+                </p>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => navigate('/employee-signup')}
+                >
+                  <Users size={16} className="mr-2" />
+                  Employee Sign Up
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

@@ -110,6 +110,9 @@ export type Database = {
           logo_url: string | null
           max_employees: number | null
           name: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_status: string | null
           updated_at: string
         }
         Insert: {
@@ -121,6 +124,9 @@ export type Database = {
           logo_url?: string | null
           max_employees?: number | null
           name: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
           updated_at?: string
         }
         Update: {
@@ -132,6 +138,9 @@ export type Database = {
           logo_url?: string | null
           max_employees?: number | null
           name?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -139,6 +148,7 @@ export type Database = {
       company_employees: {
         Row: {
           accepted_at: string | null
+          auto_joined: boolean | null
           company_id: string
           email: string
           id: string
@@ -148,6 +158,7 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          auto_joined?: boolean | null
           company_id: string
           email: string
           id?: string
@@ -157,6 +168,7 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          auto_joined?: boolean | null
           company_id?: string
           email?: string
           id?: string
@@ -213,6 +225,9 @@ export type Database = {
           full_name: string
           hourly_rate: number
           id: string
+          invitation_accepted_at: string | null
+          invitation_sent_at: string | null
+          invitation_token: string | null
           is_active: boolean | null
           specialty: string
           updated_at: string
@@ -226,6 +241,9 @@ export type Database = {
           full_name: string
           hourly_rate: number
           id?: string
+          invitation_accepted_at?: string | null
+          invitation_sent_at?: string | null
+          invitation_token?: string | null
           is_active?: boolean | null
           specialty: string
           updated_at?: string
@@ -239,6 +257,9 @@ export type Database = {
           full_name?: string
           hourly_rate?: number
           id?: string
+          invitation_accepted_at?: string | null
+          invitation_sent_at?: string | null
+          invitation_token?: string | null
           is_active?: boolean | null
           specialty?: string
           updated_at?: string

@@ -474,7 +474,23 @@ const Admin: React.FC = () => {
                           onCheckedChange={() => toggleSpecialistStatus(specialist.id, specialist.is_active)}
                         />
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            const { data, error } = await supabase.functions.invoke('invite-specialist', {
+                              body: { specialistId: specialist.id }
+                            });
+                            if (error) {
+                              toast({ title: "Failed to send invitation", description: error.message, variant: "destructive" });
+                            } else {
+                              toast({ title: "Invitation sent!", description: data.invitationLink ? `Link: ${data.invitationLink}` : data.message });
+                            }
+                          }}
+                        >
+                          Invite
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
