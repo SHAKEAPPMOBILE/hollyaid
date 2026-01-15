@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Stethoscope, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 const SpecialistSignup: React.FC = () => {
   const navigate = useNavigate();
@@ -178,9 +178,6 @@ const SpecialistSignup: React.FC = () => {
         <div className="w-full max-w-md animate-fade-up">
           <Card className="shadow-lg border-0">
             <CardHeader className="text-center pb-2">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Stethoscope className="w-8 h-8 text-primary" />
-              </div>
               <CardTitle className="text-2xl font-bold">Welcome, {specialistData?.full_name}!</CardTitle>
               <CardDescription>
                 Create your password to access your specialist dashboard
