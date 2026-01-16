@@ -13,7 +13,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar, Clock, Plus, Trash2, LogOut, CalendarDays, MessageSquare } from 'lucide-react';
 import { format, parseISO, addDays } from 'date-fns';
-import SetAvailabilityPrompt from '@/components/SetAvailabilityPrompt';
 import SpecialistBookingRequests from '@/components/SpecialistBookingRequests';
 
 interface AvailabilitySlot {
@@ -29,7 +28,6 @@ interface Specialist {
   email: string;
   specialty: string;
   hourly_rate: number;
-  has_set_availability: boolean;
 }
 
 const SpecialistDashboard: React.FC = () => {
@@ -41,7 +39,7 @@ const SpecialistDashboard: React.FC = () => {
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [showAvailabilityPrompt, setShowAvailabilityPrompt] = useState(false);
+  
   const [pendingBookingsCount, setPendingBookingsCount] = useState(0);
 
   // New slot form
@@ -72,11 +70,6 @@ const SpecialistDashboard: React.FC = () => {
       setSpecialist(specData as Specialist);
       fetchSlots(specData.id);
       fetchPendingBookingsCount(specData.id);
-      
-      // Show availability prompt if first login
-      if (!specData.has_set_availability) {
-        setShowAvailabilityPrompt(true);
-      }
     } else {
       toast({
         title: "Access denied",
@@ -178,13 +171,6 @@ const SpecialistDashboard: React.FC = () => {
     navigate('/');
   };
 
-  const handleAvailabilityComplete = () => {
-    setShowAvailabilityPrompt(false);
-    if (specialist) {
-      fetchSlots(specialist.id);
-      setSpecialist({ ...specialist, has_set_availability: true });
-    }
-  };
 
   if (authLoading || loading) {
     return (
@@ -203,13 +189,6 @@ const SpecialistDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* First-time availability prompt */}
-      {showAvailabilityPrompt && (
-        <SetAvailabilityPrompt
-          specialistId={specialist.id}
-          onComplete={handleAvailabilityComplete}
-        />
-      )}
 
       {/* Header */}
       <header className="sticky top-0 z-40 w-full border-b bg-card/80 backdrop-blur-md">
