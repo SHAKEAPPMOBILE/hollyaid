@@ -8,11 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Users, Calendar, Settings, LogOut, UserPlus, 
-  Clock, CheckCircle, XCircle, Video
+  Clock, CheckCircle, XCircle, Video, BarChart3
 } from 'lucide-react';
 import SpecialistsGrid from '@/components/SpecialistsGrid';
 import EmployeeManagement from '@/components/EmployeeManagement';
 import BookingsList from '@/components/BookingsList';
+import MinutesUsageTracker from '@/components/MinutesUsageTracker';
 import { useToast } from '@/hooks/use-toast';
 
 interface Company {
@@ -21,6 +22,10 @@ interface Company {
   email_domain: string;
   is_paid: boolean;
   max_employees: number;
+  plan_type: string | null;
+  minutes_included: number | null;
+  minutes_used: number | null;
+  subscription_period_end: string | null;
 }
 
 const Dashboard: React.FC = () => {
@@ -147,8 +152,14 @@ const Dashboard: React.FC = () => {
           </p>
         </div>
 
-        <Tabs defaultValue="specialists" className="space-y-6">
+        <Tabs defaultValue={isCompanyAdmin ? "usage" : "specialists"} className="space-y-6">
           <TabsList className="bg-secondary/50">
+            {isCompanyAdmin && (
+              <TabsTrigger value="usage" className="flex items-center gap-2">
+                <BarChart3 size={16} />
+                Usage
+              </TabsTrigger>
+            )}
             <TabsTrigger value="specialists" className="flex items-center gap-2">
               <Users size={16} />
               Specialists
@@ -164,6 +175,12 @@ const Dashboard: React.FC = () => {
               </TabsTrigger>
             )}
           </TabsList>
+
+          {isCompanyAdmin && company && (
+            <TabsContent value="usage" className="animate-fade-in">
+              <MinutesUsageTracker company={company} />
+            </TabsContent>
+          )}
 
           <TabsContent value="specialists" className="animate-fade-in">
             <SpecialistsGrid />
