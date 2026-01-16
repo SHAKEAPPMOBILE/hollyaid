@@ -307,11 +307,11 @@ const Auth: React.FC = () => {
             New employee? Join your company
           </p>
           <Button 
-            variant="ghost" 
+            variant="outline" 
             className="w-full"
             onClick={() => navigate('/employee-signup')}
           >
-            Employee Sign Up
+            Join Now
           </Button>
         </div>
       </CardContent>
