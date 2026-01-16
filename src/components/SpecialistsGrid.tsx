@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Calendar, Clock, DollarSign, Star, Video } from 'lucide-react';
-import BookingModal from './BookingModal';
+import BookingRequestModal from './BookingRequestModal';
 
 interface Specialist {
   id: string;
@@ -134,9 +134,9 @@ const SpecialistsGrid: React.FC = () => {
                   </DialogTrigger>
                   <DialogContent className="max-w-lg">
                     <DialogHeader>
-                      <DialogTitle>Book with {specialist.full_name}</DialogTitle>
+                      <DialogTitle>Request Booking with {specialist.full_name}</DialogTitle>
                     </DialogHeader>
-                    <BookingModal specialist={specialist} onClose={() => setSelectedSpecialist(null)} />
+                    <BookingRequestModal specialist={specialist} onClose={() => setSelectedSpecialist(null)} />
                   </DialogContent>
                 </Dialog>
               </div>
