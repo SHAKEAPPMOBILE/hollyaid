@@ -8,16 +8,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building2, Users, AlertCircle, CheckCircle2, CreditCard, Loader2 } from 'lucide-react';
+import { Building2, Users, AlertCircle, CheckCircle2, CreditCard, Loader2, Stethoscope, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+type AuthView = 'main' | 'employee-login' | 'specialist-login' | 'register' | 'forgot-password';
 
 const Auth: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp } = useAuth();
   const { toast } = useToast();
   
-  const [isLogin, setIsLogin] = useState(true);
+  const [view, setView] = useState<AuthView>('main');
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,6 +26,7 @@ const Auth: React.FC = () => {
   const [companyName, setCompanyName] = useState('');
   const [emailError, setEmailError] = useState('');
   const [redirectingToPayment, setRedirectingToPayment] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
 
   const validateCompanyEmail = (email: string) => {
     if (!email) {
@@ -38,7 +40,16 @@ const Auth: React.FC = () => {
     }
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setEmail('');
+    setPassword('');
+    setFullName('');
+    setCompanyName('');
+    setEmailError('');
+    setResetEmailSent(false);
+  };
+
+  const handleLogin = async (e: React.FormEvent, userType: 'employee' | 'specialist') => {
     e.preventDefault();
     setLoading(true);
     
@@ -54,29 +65,85 @@ const Auth: React.FC = () => {
       return;
     }
 
-    // Check user roles to redirect appropriately
     const { data: { user: loggedInUser } } = await supabase.auth.getUser();
     
     if (loggedInUser) {
-      // Check if specialist
-      const { data: specialist } = await supabase
-        .from('specialists')
-        .select('id')
-        .eq('user_id', loggedInUser.id)
-        .single();
+      if (userType === 'specialist') {
+        // Verify this is indeed a specialist
+        const { data: specialist } = await supabase
+          .from('specialists')
+          .select('id')
+          .eq('user_id', loggedInUser.id)
+          .single();
 
-      if (specialist) {
+        if (!specialist) {
+          toast({
+            title: "Access denied",
+            description: "This account is not registered as a specialist.",
+            variant: "destructive",
+          });
+          await supabase.auth.signOut();
+          setLoading(false);
+          return;
+        }
+
+        toast({
+          title: "Welcome back!",
+          description: "You've been logged in successfully.",
+        });
         navigate('/specialist-dashboard');
-        setLoading(false);
-        return;
+      } else {
+        // For employees, make sure they're not a specialist
+        const { data: specialist } = await supabase
+          .from('specialists')
+          .select('id')
+          .eq('user_id', loggedInUser.id)
+          .single();
+
+        if (specialist) {
+          toast({
+            title: "Wrong login",
+            description: "Please use specialist login for your account.",
+            variant: "destructive",
+          });
+          await supabase.auth.signOut();
+          setLoading(false);
+          return;
+        }
+
+        toast({
+          title: "Welcome back!",
+          description: "You've been logged in successfully.",
+        });
+        navigate('/dashboard');
       }
     }
+    
+    setLoading(false);
+  };
 
-    toast({
-      title: "Welcome back!",
-      description: "You've been logged in successfully.",
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
     });
-    navigate('/dashboard');
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setResetEmailSent(true);
+      toast({
+        title: "Email sent!",
+        description: "Check your inbox for password reset instructions.",
+      });
+    }
+
     setLoading(false);
   };
 
@@ -94,7 +161,6 @@ const Auth: React.FC = () => {
 
     setLoading(true);
     
-    // First, sign up the user
     const { error: signUpError } = await signUp(email, password, fullName);
     
     if (signUpError) {
@@ -107,7 +173,6 @@ const Auth: React.FC = () => {
       return;
     }
 
-    // Login after signup
     const { error: signInError } = await signIn(email, password);
     
     if (signInError) {
@@ -120,11 +185,9 @@ const Auth: React.FC = () => {
       return;
     }
 
-    // Get the user
     const { data: { user: newUser } } = await supabase.auth.getUser();
     
     if (newUser) {
-      // Create the company with unpaid status
       const domain = getEmailDomain(email);
       const { error: companyError } = await supabase
         .from('companies')
@@ -145,7 +208,6 @@ const Auth: React.FC = () => {
         return;
       }
 
-      // Add company_admin role
       await supabase
         .from('user_roles')
         .insert({
@@ -153,7 +215,6 @@ const Auth: React.FC = () => {
           role: 'company_admin',
         });
 
-      // Redirect to Stripe checkout
       setRedirectingToPayment(true);
       
       try {
@@ -173,7 +234,6 @@ const Auth: React.FC = () => {
           variant: "destructive",
         });
         setRedirectingToPayment(false);
-        // Still navigate to dashboard - they can pay later
         navigate('/dashboard');
       }
     }
@@ -194,171 +254,315 @@ const Auth: React.FC = () => {
     );
   }
 
+  const renderMainView = () => (
+    <Card className="shadow-lg border-0">
+      <CardHeader className="text-center pb-2">
+        <CardTitle className="text-2xl font-bold">Welcome to HollyAid</CardTitle>
+        <CardDescription className="text-muted-foreground">
+          Your corporate wellness portal
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Button 
+          variant="wellness" 
+          size="lg" 
+          className="w-full"
+          onClick={() => { resetForm(); setView('employee-login'); }}
+        >
+          <Users size={18} className="mr-2" />
+          Employee Login
+        </Button>
+        
+        <Button 
+          variant="outline" 
+          size="lg" 
+          className="w-full"
+          onClick={() => { resetForm(); setView('specialist-login'); }}
+        >
+          <Stethoscope size={18} className="mr-2" />
+          Specialist Login
+        </Button>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">Or</span>
+          </div>
+        </div>
+
+        <Button 
+          variant="secondary" 
+          size="lg" 
+          className="w-full"
+          onClick={() => { resetForm(); setView('register'); }}
+        >
+          <Building2 size={18} className="mr-2" />
+          Register as Company
+        </Button>
+
+        <div className="pt-4 border-t mt-6">
+          <p className="text-sm text-center text-muted-foreground mb-3">
+            New employee? Join your company
+          </p>
+          <Button 
+            variant="ghost" 
+            className="w-full"
+            onClick={() => navigate('/employee-signup')}
+          >
+            Employee Sign Up
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const renderLoginForm = (userType: 'employee' | 'specialist') => (
+    <Card className="shadow-lg border-0">
+      <CardHeader className="text-center pb-2">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="absolute left-4 top-4"
+          onClick={() => { resetForm(); setView('main'); }}
+        >
+          <ArrowLeft size={16} className="mr-1" />
+          Back
+        </Button>
+        <div className="pt-6">
+          <CardTitle className="text-2xl font-bold">
+            {userType === 'employee' ? 'Employee Login' : 'Specialist Login'}
+          </CardTitle>
+          <CardDescription className="text-muted-foreground">
+            Sign in to access your {userType === 'employee' ? 'wellness portal' : 'dashboard'}
+          </CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={(e) => handleLogin(e, userType)} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="login-email">Email</Label>
+            <Input
+              id="login-email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="login-password">Password</Label>
+              <Button 
+                type="button"
+                variant="link" 
+                className="px-0 h-auto text-sm text-muted-foreground"
+                onClick={() => setView('forgot-password')}
+              >
+                Forgot password?
+              </Button>
+            </div>
+            <Input
+              id="login-password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <Button 
+            type="submit" 
+            variant="wellness" 
+            size="lg" 
+            className="w-full"
+            disabled={loading}
+          >
+            {loading ? 'Signing in...' : 'Sign In'}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+
+  const renderForgotPassword = () => (
+    <Card className="shadow-lg border-0">
+      <CardHeader className="text-center pb-2">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="absolute left-4 top-4"
+          onClick={() => { resetForm(); setView('main'); }}
+        >
+          <ArrowLeft size={16} className="mr-1" />
+          Back
+        </Button>
+        <div className="pt-6">
+          <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
+          <CardDescription className="text-muted-foreground">
+            {resetEmailSent 
+              ? "Check your email for reset instructions" 
+              : "Enter your email to receive a reset link"}
+          </CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {resetEmailSent ? (
+          <div className="text-center space-y-4">
+            <CheckCircle2 className="w-16 h-16 text-primary mx-auto" />
+            <p className="text-muted-foreground">
+              We've sent password reset instructions to <strong>{email}</strong>
+            </p>
+            <Button 
+              variant="outline" 
+              onClick={() => { resetForm(); setView('main'); }}
+            >
+              Back to Login
+            </Button>
+          </div>
+        ) : (
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email">Email</Label>
+              <Input
+                id="reset-email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <Button 
+              type="submit" 
+              variant="wellness" 
+              size="lg" 
+              className="w-full"
+              disabled={loading}
+            >
+              {loading ? 'Sending...' : 'Send Reset Link'}
+            </Button>
+          </form>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  const renderRegister = () => (
+    <Card className="shadow-lg border-0">
+      <CardHeader className="text-center pb-2">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="absolute left-4 top-4"
+          onClick={() => { resetForm(); setView('main'); }}
+        >
+          <ArrowLeft size={16} className="mr-1" />
+          Back
+        </Button>
+        <div className="pt-6">
+          <CardTitle className="text-2xl font-bold">Register Your Company</CardTitle>
+          <CardDescription className="text-muted-foreground">
+            Create an account with your company email
+          </CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleRegister} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="company-name">Company Name</Label>
+            <Input
+              id="company-name"
+              type="text"
+              placeholder="Acme Inc."
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="full-name">Your Full Name</Label>
+            <Input
+              id="full-name"
+              type="text"
+              placeholder="John Doe"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="register-email">Company Email</Label>
+            <Input
+              id="register-email"
+              type="email"
+              placeholder="you@company.com"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                validateCompanyEmail(e.target.value);
+              }}
+              className={emailError ? 'border-destructive' : ''}
+              required
+            />
+            {emailError && (
+              <p className="text-sm text-destructive flex items-center gap-1">
+                <AlertCircle size={14} />
+                {emailError}
+              </p>
+            )}
+            {email && !emailError && isCompanyEmail(email) && (
+              <p className="text-sm text-primary flex items-center gap-1">
+                <CheckCircle2 size={14} />
+                Valid company email
+              </p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="register-password">Password</Label>
+            <Input
+              id="register-password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+            />
+          </div>
+          <Button 
+            type="submit" 
+            variant="wellness" 
+            size="lg" 
+            className="w-full"
+            disabled={loading || !!emailError}
+          >
+            <CreditCard size={16} className="mr-2" />
+            {loading ? 'Creating Account...' : 'Register & Pay $99/month'}
+          </Button>
+          <p className="text-xs text-muted-foreground text-center mt-4">
+            Your company will have access to invite up to 100 employees after payment.
+          </p>
+        </form>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
       <header className="w-full py-6 px-8">
         <Logo size="md" />
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 flex items-center justify-center px-4 pb-12">
-        <div className="w-full max-w-md animate-fade-up">
-          <Card className="shadow-lg border-0">
-            <CardHeader className="text-center pb-2">
-              <CardTitle className="text-2xl font-bold">
-                {isLogin ? 'Welcome Back' : 'Register Your Company'}
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                {isLogin 
-                  ? 'Sign in to access your wellness portal' 
-                  : 'Create an account with your company email'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Tabs value={isLogin ? 'login' : 'register'} onValueChange={(v) => setIsLogin(v === 'login')}>
-                <TabsList className="grid w-full grid-cols-2 mb-6">
-                  <TabsTrigger value="login" className="flex items-center gap-2">
-                    <Users size={16} />
-                    Login
-                  </TabsTrigger>
-                  <TabsTrigger value="register" className="flex items-center gap-2">
-                    <Building2 size={16} />
-                    Register
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="login">
-                  <form onSubmit={handleLogin} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="login-email">Email</Label>
-                      <Input
-                        id="login-email"
-                        type="email"
-                        placeholder="you@company.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="login-password">Password</Label>
-                      <Input
-                        id="login-password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <Button 
-                      type="submit" 
-                      variant="wellness" 
-                      size="lg" 
-                      className="w-full"
-                      disabled={loading}
-                    >
-                      {loading ? 'Signing in...' : 'Sign In'}
-                    </Button>
-                  </form>
-                </TabsContent>
-
-                <TabsContent value="register">
-                  <form onSubmit={handleRegister} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="company-name">Company Name</Label>
-                      <Input
-                        id="company-name"
-                        type="text"
-                        placeholder="Acme Inc."
-                        value={companyName}
-                        onChange={(e) => setCompanyName(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="full-name">Your Full Name</Label>
-                      <Input
-                        id="full-name"
-                        type="text"
-                        placeholder="John Doe"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="register-email">Company Email</Label>
-                      <Input
-                        id="register-email"
-                        type="email"
-                        placeholder="you@company.com"
-                        value={email}
-                        onChange={(e) => {
-                          setEmail(e.target.value);
-                          validateCompanyEmail(e.target.value);
-                        }}
-                        className={emailError ? 'border-destructive' : ''}
-                        required
-                      />
-                      {emailError && (
-                        <p className="text-sm text-destructive flex items-center gap-1">
-                          <AlertCircle size={14} />
-                          {emailError}
-                        </p>
-                      )}
-                      {email && !emailError && isCompanyEmail(email) && (
-                        <p className="text-sm text-primary flex items-center gap-1">
-                          <CheckCircle2 size={14} />
-                          Valid company email
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="register-password">Password</Label>
-                      <Input
-                        id="register-password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        minLength={6}
-                      />
-                    </div>
-                    <Button 
-                      type="submit" 
-                      variant="wellness" 
-                      size="lg" 
-                      className="w-full"
-                      disabled={loading || !!emailError}
-                    >
-                      <CreditCard size={16} className="mr-2" />
-                      {loading ? 'Creating Account...' : 'Register & Pay $99/month'}
-                    </Button>
-                    <p className="text-xs text-muted-foreground text-center mt-4">
-                      Your company will have access to invite up to 100 employees after payment.
-                    </p>
-                  </form>
-                </TabsContent>
-              </Tabs>
-
-              <div className="mt-6 pt-4 border-t">
-                <p className="text-sm text-center text-muted-foreground mb-3">
-                  Are you an employee?
-                </p>
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => navigate('/employee-signup')}
-                >
-                  <Users size={16} className="mr-2" />
-                  Employee Sign Up
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="w-full max-w-md animate-fade-up relative">
+          {view === 'main' && renderMainView()}
+          {view === 'employee-login' && renderLoginForm('employee')}
+          {view === 'specialist-login' && renderLoginForm('specialist')}
+          {view === 'forgot-password' && renderForgotPassword()}
+          {view === 'register' && renderRegister()}
         </div>
       </main>
     </div>
