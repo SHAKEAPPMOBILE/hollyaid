@@ -320,7 +320,7 @@ const Auth: React.FC = () => {
 
   const renderLoginForm = (userType: 'employee' | 'specialist') => (
     <Card className="shadow-lg border-0">
-      <CardHeader className="text-center pb-2">
+      <CardHeader className="text-center pb-2 relative">
         <Button 
           variant="ghost" 
           size="sm" 
@@ -389,7 +389,7 @@ const Auth: React.FC = () => {
 
   const renderForgotPassword = () => (
     <Card className="shadow-lg border-0">
-      <CardHeader className="text-center pb-2">
+      <CardHeader className="text-center pb-2 relative">
         <Button 
           variant="ghost" 
           size="sm" 
@@ -452,7 +452,7 @@ const Auth: React.FC = () => {
 
   const renderRegister = () => (
     <Card className="shadow-lg border-0">
-      <CardHeader className="text-center pb-2">
+      <CardHeader className="text-center pb-2 relative">
         <Button 
           variant="ghost" 
           size="sm" 
