@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Users, AlertCircle, CheckCircle2, Loader2, Stethoscope, ArrowLeft } from 'lucide-react';
+import { Building2, Users, AlertCircle, CheckCircle2, Loader2, HandHeart, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import PlanSelection, { WELLNESS_PLANS, Plan } from '@/components/PlanSelection';
 import { isTestAccountEmail } from '@/lib/plans';
@@ -339,7 +339,7 @@ const Auth: React.FC = () => {
           className="w-full"
           onClick={() => { resetForm(); setView('specialist-login'); }}
         >
-          <Stethoscope size={18} className="mr-2" />
+          <HandHeart size={18} className="mr-2 text-primary" />
           Specialist Login
         </Button>
         
