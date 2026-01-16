@@ -68,6 +68,9 @@ export const SPECIALIST_TIERS = {
 export type PlanType = keyof typeof WELLNESS_PLANS;
 export type SpecialistTier = keyof typeof SPECIALIST_TIERS;
 
+// Array format for easy iteration
+export const PLANS = Object.values(WELLNESS_PLANS);
+
 // Test account domains that bypass Stripe payment
 export const TEST_ACCOUNT_DOMAINS = ['hollyaid.com', 'shakeapp.today'];
 
