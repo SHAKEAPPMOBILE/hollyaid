@@ -49,35 +49,79 @@ export type Database = {
           },
         ]
       }
+      booking_messages: {
+        Row: {
+          booking_id: string
+          created_at: string
+          id: string
+          message: string
+          sender_type: string
+          sender_user_id: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          id?: string
+          message: string
+          sender_type: string
+          sender_user_id: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          id?: string
+          message?: string
+          sender_type?: string
+          sender_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_messages_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
+          confirmed_datetime: string | null
           created_at: string
           employee_user_id: string
           id: string
+          meeting_link: string | null
           notes: string | null
-          slot_id: string
+          proposed_datetime: string | null
+          slot_id: string | null
           specialist_id: string
           status: string
           updated_at: string
           zoom_link: string | null
         }
         Insert: {
+          confirmed_datetime?: string | null
           created_at?: string
           employee_user_id: string
           id?: string
+          meeting_link?: string | null
           notes?: string | null
-          slot_id: string
+          proposed_datetime?: string | null
+          slot_id?: string | null
           specialist_id: string
           status?: string
           updated_at?: string
           zoom_link?: string | null
         }
         Update: {
+          confirmed_datetime?: string | null
           created_at?: string
           employee_user_id?: string
           id?: string
+          meeting_link?: string | null
           notes?: string | null
-          slot_id?: string
+          proposed_datetime?: string | null
+          slot_id?: string | null
           specialist_id?: string
           status?: string
           updated_at?: string
@@ -223,6 +267,7 @@ export type Database = {
           created_at: string
           email: string
           full_name: string
+          has_set_availability: boolean | null
           hourly_rate: number
           id: string
           invitation_accepted_at: string | null
@@ -239,6 +284,7 @@ export type Database = {
           created_at?: string
           email: string
           full_name: string
+          has_set_availability?: boolean | null
           hourly_rate: number
           id?: string
           invitation_accepted_at?: string | null
@@ -255,6 +301,7 @@ export type Database = {
           created_at?: string
           email?: string
           full_name?: string
+          has_set_availability?: boolean | null
           hourly_rate?: number
           id?: string
           invitation_accepted_at?: string | null

@@ -9,9 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Clock, Plus, Trash2, LogOut, CalendarDays } from 'lucide-react';
+import { Calendar, Clock, Plus, Trash2, LogOut, CalendarDays, MessageSquare } from 'lucide-react';
 import { format, parseISO, addDays } from 'date-fns';
+import SetAvailabilityPrompt from '@/components/SetAvailabilityPrompt';
+import SpecialistBookingRequests from '@/components/SpecialistBookingRequests';
 
 interface AvailabilitySlot {
   id: string;
@@ -26,6 +29,7 @@ interface Specialist {
   email: string;
   specialty: string;
   hourly_rate: number;
+  has_set_availability: boolean;
 }
 
 const SpecialistDashboard: React.FC = () => {
@@ -37,6 +41,8 @@ const SpecialistDashboard: React.FC = () => {
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [showAvailabilityPrompt, setShowAvailabilityPrompt] = useState(false);
+  const [pendingBookingsCount, setPendingBookingsCount] = useState(0);
 
   // New slot form
   const [slotDate, setSlotDate] = useState('');
@@ -63,8 +69,14 @@ const SpecialistDashboard: React.FC = () => {
       .single();
 
     if (specData) {
-      setSpecialist(specData);
+      setSpecialist(specData as Specialist);
       fetchSlots(specData.id);
+      fetchPendingBookingsCount(specData.id);
+      
+      // Show availability prompt if first login
+      if (!specData.has_set_availability) {
+        setShowAvailabilityPrompt(true);
+      }
     } else {
       toast({
         title: "Access denied",
@@ -87,6 +99,16 @@ const SpecialistDashboard: React.FC = () => {
     if (!error && data) {
       setSlots(data);
     }
+  };
+
+  const fetchPendingBookingsCount = async (specialistId: string) => {
+    const { count } = await supabase
+      .from('bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('specialist_id', specialistId)
+      .eq('status', 'pending');
+    
+    setPendingBookingsCount(count || 0);
   };
 
   const handleAddSlot = async (e: React.FormEvent) => {
@@ -156,6 +178,14 @@ const SpecialistDashboard: React.FC = () => {
     navigate('/');
   };
 
+  const handleAvailabilityComplete = () => {
+    setShowAvailabilityPrompt(false);
+    if (specialist) {
+      fetchSlots(specialist.id);
+      setSpecialist({ ...specialist, has_set_availability: true });
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -173,8 +203,16 @@ const SpecialistDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* First-time availability prompt */}
+      {showAvailabilityPrompt && (
+        <SetAvailabilityPrompt
+          specialistId={specialist.id}
+          onComplete={handleAvailabilityComplete}
+        />
+      )}
+
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-card/80 backdrop-blur-md">
+      <header className="sticky top-0 z-40 w-full border-b bg-card/80 backdrop-blur-md">
         <div className="container flex h-16 items-center justify-between">
           <Logo size="sm" />
           <div className="flex items-center gap-4">
@@ -197,7 +235,7 @@ const SpecialistDashboard: React.FC = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
@@ -237,118 +275,153 @@ const SpecialistDashboard: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Add Slot Form */}
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus size={20} />
-                Add Availability
-              </CardTitle>
-              <CardDescription>Set your available consultation times</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleAddSlot} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="date">Date</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={slotDate}
-                    onChange={(e) => setSlotDate(e.target.value)}
-                    min={today}
-                    required
-                  />
+          <Card className={pendingBookingsCount > 0 ? 'ring-2 ring-primary' : ''}>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-primary/10">
+                  <MessageSquare className="text-primary" size={24} />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="start">Start Time</Label>
-                    <Input
-                      id="start"
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="end">End Time</Label>
-                    <Input
-                      id="end"
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      required
-                    />
-                  </div>
+                <div>
+                  <p className="text-2xl font-bold">{pendingBookingsCount}</p>
+                  <p className="text-sm text-muted-foreground">Pending Requests</p>
                 </div>
-                <Button type="submit" variant="wellness" className="w-full" disabled={submitting}>
-                  {submitting ? 'Adding...' : 'Add Slot'}
-                </Button>
-              </form>
+              </div>
             </CardContent>
           </Card>
+        </div>
 
-          {/* Slots List */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Your Availability Slots</CardTitle>
-              <CardDescription>Upcoming consultation slots</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {slots.length === 0 ? (
-                <div className="text-center py-8">
-                  <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground">No availability slots set yet</p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {slots.map((slot) => (
-                      <TableRow key={slot.id}>
-                        <TableCell>
-                          {format(parseISO(slot.start_time), 'MMM d, yyyy')}
-                        </TableCell>
-                        <TableCell>
-                          {format(parseISO(slot.start_time), 'h:mm a')} - {format(parseISO(slot.end_time), 'h:mm a')}
-                        </TableCell>
-                        <TableCell>
-                          {slot.is_booked ? (
-                            <Badge className="bg-primary">Booked</Badge>
-                          ) : (
-                            <Badge variant="secondary">Available</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {!slot.is_booked && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive"
-                              onClick={() => handleDeleteSlot(slot.id)}
-                            >
-                              <Trash2 size={16} />
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+        {/* Tabs */}
+        <Tabs defaultValue="requests" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="requests" className="relative">
+              Booking Requests
+              {pendingBookingsCount > 0 && (
+                <Badge className="ml-2 bg-primary text-primary-foreground">{pendingBookingsCount}</Badge>
               )}
-            </CardContent>
-          </Card>
-        </div>
+            </TabsTrigger>
+            <TabsTrigger value="availability">Manage Availability</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="requests">
+            <SpecialistBookingRequests
+              specialistId={specialist.id}
+              onBookingUpdate={() => fetchPendingBookingsCount(specialist.id)}
+            />
+          </TabsContent>
+
+          <TabsContent value="availability">
+            <div className="grid gap-6 lg:grid-cols-3">
+              {/* Add Slot Form */}
+              <Card className="lg:col-span-1">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Plus size={20} />
+                    Add Availability
+                  </CardTitle>
+                  <CardDescription>Set your available consultation times</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleAddSlot} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="date">Date</Label>
+                      <Input
+                        id="date"
+                        type="date"
+                        value={slotDate}
+                        onChange={(e) => setSlotDate(e.target.value)}
+                        min={today}
+                        required
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="start">Start Time</Label>
+                        <Input
+                          id="start"
+                          type="time"
+                          value={startTime}
+                          onChange={(e) => setStartTime(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="end">End Time</Label>
+                        <Input
+                          id="end"
+                          type="time"
+                          value={endTime}
+                          onChange={(e) => setEndTime(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <Button type="submit" variant="wellness" className="w-full" disabled={submitting}>
+                      {submitting ? 'Adding...' : 'Add Slot'}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Slots List */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Your Availability Slots</CardTitle>
+                  <CardDescription>Upcoming consultation slots</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {slots.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                      <p className="text-muted-foreground">No availability slots set yet</p>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Time</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {slots.map((slot) => (
+                          <TableRow key={slot.id}>
+                            <TableCell>
+                              {format(parseISO(slot.start_time), 'MMM d, yyyy')}
+                            </TableCell>
+                            <TableCell>
+                              {format(parseISO(slot.start_time), 'h:mm a')} - {format(parseISO(slot.end_time), 'h:mm a')}
+                            </TableCell>
+                            <TableCell>
+                              {slot.is_booked ? (
+                                <Badge className="bg-primary">Booked</Badge>
+                              ) : (
+                                <Badge variant="secondary">Available</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {!slot.is_booked && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive"
+                                  onClick={() => handleDeleteSlot(slot.id)}
+                                >
+                                  <Trash2 size={16} />
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
