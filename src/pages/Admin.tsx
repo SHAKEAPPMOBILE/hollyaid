@@ -44,7 +44,7 @@ const Admin: React.FC = () => {
   const [email, setEmail] = useState('');
   const [specialty, setSpecialty] = useState('');
   const [bio, setBio] = useState('');
-  const [hourlyRate, setHourlyRate] = useState('');
+  
   const [submitting, setSubmitting] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -158,7 +158,7 @@ const Admin: React.FC = () => {
         email: email,
         specialty: specialty,
         bio: bio || null,
-        hourly_rate: parseFloat(hourlyRate),
+        hourly_rate: 25, // Default rate, specialist will set their tier on signup
         is_active: true,
         avatar_url: avatarUrl,
       });
@@ -215,7 +215,6 @@ const Admin: React.FC = () => {
     setEmail('');
     setSpecialty('');
     setBio('');
-    setHourlyRate('');
     clearAvatar();
   };
 
@@ -400,19 +399,6 @@ const Admin: React.FC = () => {
                       value={specialty}
                       onChange={(e) => setSpecialty(e.target.value)}
                       placeholder="Mental Health, Yoga, Nutrition..."
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="hourly-rate">Hourly Rate ($)</Label>
-                    <Input
-                      id="hourly-rate"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={hourlyRate}
-                      onChange={(e) => setHourlyRate(e.target.value)}
-                      placeholder="75.00"
                       required
                     />
                   </div>
