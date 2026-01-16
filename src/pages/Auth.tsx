@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Building2, Users, AlertCircle, CheckCircle2, CreditCard, Loader2, Stethoscope, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-type AuthView = 'main' | 'employee-login' | 'specialist-login' | 'register' | 'forgot-password';
+type AuthView = 'main' | 'employee-login' | 'specialist-login' | 'company-login' | 'register' | 'forgot-password';
 
 const Auth: React.FC = () => {
   const navigate = useNavigate();
@@ -49,7 +49,7 @@ const Auth: React.FC = () => {
     setResetEmailSent(false);
   };
 
-  const handleLogin = async (e: React.FormEvent, userType: 'employee' | 'specialist') => {
+  const handleLogin = async (e: React.FormEvent, userType: 'employee' | 'specialist' | 'company') => {
     e.preventDefault();
     setLoading(true);
     
@@ -92,6 +92,30 @@ const Auth: React.FC = () => {
           description: "You've been logged in successfully.",
         });
         navigate('/specialist-dashboard');
+      } else if (userType === 'company') {
+        // Verify this is a company admin
+        const { data: company } = await supabase
+          .from('companies')
+          .select('id')
+          .eq('admin_user_id', loggedInUser.id)
+          .single();
+
+        if (!company) {
+          toast({
+            title: "Access denied",
+            description: "This account is not registered as a company admin.",
+            variant: "destructive",
+          });
+          await supabase.auth.signOut();
+          setLoading(false);
+          return;
+        }
+
+        toast({
+          title: "Welcome back!",
+          description: "You've been logged in successfully.",
+        });
+        navigate('/admin');
       } else {
         // For employees, make sure they're not a specialist
         const { data: specialist } = await supabase
@@ -282,6 +306,16 @@ const Auth: React.FC = () => {
           <Stethoscope size={18} className="mr-2" />
           Specialist Login
         </Button>
+        
+        <Button 
+          variant="outline" 
+          size="lg" 
+          className="w-full"
+          onClick={() => { resetForm(); setView('company-login'); }}
+        >
+          <Building2 size={18} className="mr-2" />
+          Company Login
+        </Button>
 
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
@@ -318,7 +352,19 @@ const Auth: React.FC = () => {
     </Card>
   );
 
-  const renderLoginForm = (userType: 'employee' | 'specialist') => (
+  const renderLoginForm = (userType: 'employee' | 'specialist' | 'company') => {
+    const titles = {
+      employee: 'Employee Login',
+      specialist: 'Specialist Login',
+      company: 'Company Login'
+    };
+    const descriptions = {
+      employee: 'wellness portal',
+      specialist: 'dashboard',
+      company: 'admin dashboard'
+    };
+    
+    return (
     <Card className="shadow-lg border-0">
       <CardHeader className="text-center pb-2 relative">
         <Button 
@@ -332,10 +378,10 @@ const Auth: React.FC = () => {
         </Button>
         <div className="pt-6">
           <CardTitle className="text-2xl font-bold">
-            {userType === 'employee' ? 'Employee Login' : 'Specialist Login'}
+            {titles[userType]}
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            Sign in to access your {userType === 'employee' ? 'wellness portal' : 'dashboard'}
+            Sign in to access your {descriptions[userType]}
           </CardDescription>
         </div>
       </CardHeader>
@@ -386,6 +432,7 @@ const Auth: React.FC = () => {
       </CardContent>
     </Card>
   );
+  };
 
   const renderForgotPassword = () => (
     <Card className="shadow-lg border-0">
@@ -561,6 +608,7 @@ const Auth: React.FC = () => {
           {view === 'main' && renderMainView()}
           {view === 'employee-login' && renderLoginForm('employee')}
           {view === 'specialist-login' && renderLoginForm('specialist')}
+          {view === 'company-login' && renderLoginForm('company')}
           {view === 'forgot-password' && renderForgotPassword()}
           {view === 'register' && renderRegister()}
         </div>
