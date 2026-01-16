@@ -151,11 +151,17 @@ export type Database = {
           email_domain: string
           id: string
           is_paid: boolean | null
+          is_test_account: boolean | null
           logo_url: string | null
           max_employees: number | null
+          minutes_included: number | null
+          minutes_used: number | null
           name: string
+          plan_type: string | null
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
+          subscription_period_end: string | null
+          subscription_period_start: string | null
           subscription_status: string | null
           updated_at: string
         }
@@ -165,11 +171,17 @@ export type Database = {
           email_domain: string
           id?: string
           is_paid?: boolean | null
+          is_test_account?: boolean | null
           logo_url?: string | null
           max_employees?: number | null
+          minutes_included?: number | null
+          minutes_used?: number | null
           name: string
+          plan_type?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          subscription_period_end?: string | null
+          subscription_period_start?: string | null
           subscription_status?: string | null
           updated_at?: string
         }
@@ -179,11 +191,17 @@ export type Database = {
           email_domain?: string
           id?: string
           is_paid?: boolean | null
+          is_test_account?: boolean | null
           logo_url?: string | null
           max_employees?: number | null
+          minutes_included?: number | null
+          minutes_used?: number | null
           name?: string
+          plan_type?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
+          subscription_period_end?: string | null
+          subscription_period_start?: string | null
           subscription_status?: string | null
           updated_at?: string
         }
@@ -274,6 +292,7 @@ export type Database = {
           invitation_sent_at: string | null
           invitation_token: string | null
           is_active: boolean | null
+          rate_tier: Database["public"]["Enums"]["specialist_rate_tier"] | null
           specialty: string
           updated_at: string
           user_id: string | null
@@ -291,6 +310,7 @@ export type Database = {
           invitation_sent_at?: string | null
           invitation_token?: string | null
           is_active?: boolean | null
+          rate_tier?: Database["public"]["Enums"]["specialist_rate_tier"] | null
           specialty: string
           updated_at?: string
           user_id?: string | null
@@ -308,6 +328,7 @@ export type Database = {
           invitation_sent_at?: string | null
           invitation_token?: string | null
           is_active?: boolean | null
+          rate_tier?: Database["public"]["Enums"]["specialist_rate_tier"] | null
           specialty?: string
           updated_at?: string
           user_id?: string | null
@@ -350,6 +371,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "company_admin" | "employee" | "specialist"
+      specialist_rate_tier: "standard" | "advanced" | "expert" | "master"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -478,6 +500,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "company_admin", "employee", "specialist"],
+      specialist_rate_tier: ["standard", "advanced", "expert", "master"],
     },
   },
 } as const

@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, DollarSign } from 'lucide-react';
+import { SPECIALIST_TIERS, SpecialistTier } from '@/lib/plans';
 
 const SpecialistSignup: React.FC = () => {
   const navigate = useNavigate();
@@ -25,6 +27,7 @@ const SpecialistSignup: React.FC = () => {
   const [specialistData, setSpecialistData] = useState<any>(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [selectedTier, setSelectedTier] = useState<SpecialistTier>('standard');
 
   useEffect(() => {
     validateToken();
@@ -95,12 +98,16 @@ const SpecialistSignup: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
-        // Update specialist with user_id
+        const tier = SPECIALIST_TIERS[selectedTier];
+        
+        // Update specialist with user_id and rate tier
         const { error: updateError } = await supabase
           .from('specialists')
           .update({
             user_id: user.id,
             invitation_accepted_at: new Date().toISOString(),
+            rate_tier: selectedTier,
+            hourly_rate: tier.hourlyRate,
           })
           .eq('id', specialistData.id);
 
@@ -117,8 +124,8 @@ const SpecialistSignup: React.FC = () => {
           });
 
         toast({
-          title: "Welcome to WellnessHub!",
-          description: "Your specialist account has been created. You can now set your availability.",
+          title: "Welcome to HollyAid!",
+          description: `Your specialist account has been created at the ${tier.name} tier ($${tier.hourlyRate}/hr).`,
         });
         navigate('/specialist-dashboard');
       }
@@ -175,16 +182,16 @@ const SpecialistSignup: React.FC = () => {
       </header>
 
       <main className="flex-1 flex items-center justify-center px-4 pb-12">
-        <div className="w-full max-w-md animate-fade-up">
+        <div className="w-full max-w-lg animate-fade-up">
           <Card className="shadow-lg border-0">
             <CardHeader className="text-center pb-2">
               <CardTitle className="text-2xl font-bold">Welcome, {specialistData?.full_name}!</CardTitle>
               <CardDescription>
-                Create your password to access your specialist dashboard
+                Set up your account and choose your rate tier
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSignup} className="space-y-4">
+              <form onSubmit={handleSignup} className="space-y-6">
                 <div className="space-y-2">
                   <Label>Email</Label>
                   <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
@@ -198,6 +205,43 @@ const SpecialistSignup: React.FC = () => {
                     <span className="text-sm">{specialistData?.specialty}</span>
                   </div>
                 </div>
+
+                {/* Rate Tier Selection */}
+                <div className="space-y-3">
+                  <Label className="flex items-center gap-2">
+                    <DollarSign size={16} />
+                    Select Your Rate Tier
+                  </Label>
+                  <RadioGroup
+                    value={selectedTier}
+                    onValueChange={(value) => setSelectedTier(value as SpecialistTier)}
+                    className="grid grid-cols-2 gap-3"
+                  >
+                    {Object.entries(SPECIALIST_TIERS).map(([key, tier]) => (
+                      <div key={key} className="relative">
+                        <RadioGroupItem
+                          value={key}
+                          id={key}
+                          className="peer sr-only"
+                        />
+                        <Label
+                          htmlFor={key}
+                          className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer transition-all"
+                        >
+                          <span className="font-semibold">{tier.name}</span>
+                          <span className="text-2xl font-bold text-primary">${tier.hourlyRate}/hr</span>
+                          <span className="text-xs text-muted-foreground mt-1">
+                            You earn ${tier.specialistGets}/hr
+                          </span>
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                  <p className="text-xs text-muted-foreground">
+                    HollyAid takes a 20% platform fee. You can change your tier later.
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="password">Create Password</Label>
                   <Input

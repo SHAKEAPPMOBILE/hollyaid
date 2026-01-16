@@ -8,10 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Users, AlertCircle, CheckCircle2, CreditCard, Loader2, Stethoscope, ArrowLeft } from 'lucide-react';
+import { Building2, Users, AlertCircle, CheckCircle2, Loader2, Stethoscope, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import PlanSelection, { WELLNESS_PLANS, Plan } from '@/components/PlanSelection';
+import { isTestAccountEmail } from '@/lib/plans';
 
-type AuthView = 'main' | 'employee-login' | 'specialist-login' | 'company-login' | 'register' | 'forgot-password';
+type AuthView = 'main' | 'employee-login' | 'specialist-login' | 'company-login' | 'register' | 'forgot-password' | 'select-plan';
 
 const Auth: React.FC = () => {
   const navigate = useNavigate();
@@ -27,6 +29,8 @@ const Auth: React.FC = () => {
   const [emailError, setEmailError] = useState('');
   const [redirectingToPayment, setRedirectingToPayment] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('');
+  const [registeredUserId, setRegisteredUserId] = useState<string | null>(null);
 
   const validateCompanyEmail = (email: string) => {
     if (!email) {
@@ -47,6 +51,8 @@ const Auth: React.FC = () => {
     setCompanyName('');
     setEmailError('');
     setResetEmailSent(false);
+    setSelectedPlanId('');
+    setRegisteredUserId(null);
   };
 
   const handleLogin = async (e: React.FormEvent, userType: 'employee' | 'specialist' | 'company') => {
@@ -69,7 +75,6 @@ const Auth: React.FC = () => {
     
     if (loggedInUser) {
       if (userType === 'specialist') {
-        // Verify this is indeed a specialist
         const { data: specialist } = await supabase
           .from('specialists')
           .select('id')
@@ -93,10 +98,9 @@ const Auth: React.FC = () => {
         });
         navigate('/specialist-dashboard');
       } else if (userType === 'company') {
-        // Verify this is a company admin
         const { data: company } = await supabase
           .from('companies')
-          .select('id')
+          .select('id, subscription_status')
           .eq('admin_user_id', loggedInUser.id)
           .single();
 
@@ -111,13 +115,20 @@ const Auth: React.FC = () => {
           return;
         }
 
+        // If subscription is unpaid, show plan selection
+        if (company.subscription_status === 'unpaid') {
+          setRegisteredUserId(loggedInUser.id);
+          setView('select-plan');
+          setLoading(false);
+          return;
+        }
+
         toast({
           title: "Welcome back!",
           description: "You've been logged in successfully.",
         });
         navigate('/admin');
       } else {
-        // For employees, make sure they're not a specialist
         const { data: specialist } = await supabase
           .from('specialists')
           .select('id')
@@ -220,6 +231,7 @@ const Auth: React.FC = () => {
           email_domain: domain,
           admin_user_id: newUser.id,
           subscription_status: 'unpaid',
+          is_test_account: isTestAccountEmail(email),
         });
 
       if (companyError) {
@@ -239,29 +251,53 @@ const Auth: React.FC = () => {
           role: 'company_admin',
         });
 
-      setRedirectingToPayment(true);
-      
-      try {
-        const { data, error } = await supabase.functions.invoke('create-checkout');
-        
-        if (error) throw error;
-        
-        if (data?.url) {
-          window.location.href = data.url;
-        } else {
-          throw new Error('No checkout URL received');
-        }
-      } catch (checkoutError: any) {
-        toast({
-          title: "Payment setup failed",
-          description: checkoutError.message || "Please try again later.",
-          variant: "destructive",
-        });
-        setRedirectingToPayment(false);
-        navigate('/dashboard');
-      }
+      setRegisteredUserId(newUser.id);
+      setView('select-plan');
+      toast({
+        title: "Account created!",
+        description: "Now choose your wellness minutes plan.",
+      });
     }
     
+    setLoading(false);
+  };
+
+  const handlePlanSelect = async (plan: Plan) => {
+    setSelectedPlanId(plan.id);
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { planType: plan.id },
+      });
+      
+      if (error) throw error;
+      
+      // Test account - subscription activated without Stripe
+      if (data?.isTestAccount) {
+        toast({
+          title: "Plan activated!",
+          description: `Your ${plan.name} plan is now active with ${plan.minutes} minutes.`,
+        });
+        navigate('/admin');
+        return;
+      }
+
+      // Regular account - redirect to Stripe
+      if (data?.url) {
+        setRedirectingToPayment(true);
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (checkoutError: any) {
+      toast({
+        title: "Payment setup failed",
+        description: checkoutError.message || "Please try again later.",
+        variant: "destructive",
+      });
+    }
+
     setLoading(false);
   };
 
@@ -586,15 +622,33 @@ const Auth: React.FC = () => {
             className="w-full"
             disabled={loading || !!emailError}
           >
-            <CreditCard size={16} className="mr-2" />
-            {loading ? 'Creating Account...' : 'Register & Pay $99/month'}
+            {loading ? 'Creating Account...' : 'Continue to Plan Selection'}
           </Button>
           <p className="text-xs text-muted-foreground text-center mt-4">
-            Your company will have access to invite up to 100 employees after payment.
+            Next, you'll choose your wellness minutes plan.
           </p>
         </form>
       </CardContent>
     </Card>
+  );
+
+  const renderPlanSelection = () => (
+    <div className="w-full max-w-4xl">
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        className="mb-4"
+        onClick={() => { resetForm(); setView('main'); }}
+      >
+        <ArrowLeft size={16} className="mr-1" />
+        Back to Login
+      </Button>
+      <PlanSelection 
+        onSelectPlan={handlePlanSelect}
+        loading={loading}
+        selectedPlanId={selectedPlanId}
+      />
+    </div>
   );
 
   return (
@@ -604,13 +658,14 @@ const Auth: React.FC = () => {
       </header>
 
       <main className="flex-1 flex items-center justify-center px-4 pb-12">
-        <div className="w-full max-w-md animate-fade-up relative">
+        <div className={`animate-fade-up relative ${view === 'select-plan' ? 'w-full max-w-4xl' : 'w-full max-w-md'}`}>
           {view === 'main' && renderMainView()}
           {view === 'employee-login' && renderLoginForm('employee')}
           {view === 'specialist-login' && renderLoginForm('specialist')}
           {view === 'company-login' && renderLoginForm('company')}
           {view === 'forgot-password' && renderForgotPassword()}
           {view === 'register' && renderRegister()}
+          {view === 'select-plan' && renderPlanSelection()}
         </div>
       </main>
     </div>
