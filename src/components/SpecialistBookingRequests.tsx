@@ -92,7 +92,22 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
 
   const generateMeetingLink = () => {
     const roomId = `hollyaid-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    return `https://meet.jit.si/${roomId}`;
+    // Configure Jitsi to hide branding and minimize UI clutter
+    const config = new URLSearchParams({
+      'config.prejoinPageEnabled': 'false',
+      'config.disableDeepLinking': 'true',
+      'config.hideConferenceSubject': 'true',
+      'config.hideConferenceTimer': 'false',
+      'config.hiddenPremeetingButtons': '["invite","select-background"]',
+      'interfaceConfig.SHOW_JITSI_WATERMARK': 'false',
+      'interfaceConfig.SHOW_WATERMARK_FOR_GUESTS': 'false',
+      'interfaceConfig.SHOW_BRAND_WATERMARK': 'false',
+      'interfaceConfig.SHOW_POWERED_BY': 'false',
+      'interfaceConfig.SHOW_PROMOTIONAL_CLOSE_PAGE': 'false',
+      'interfaceConfig.HIDE_INVITE_MORE_HEADER': 'true',
+      'interfaceConfig.DISABLE_JOIN_LEAVE_NOTIFICATIONS': 'true',
+    });
+    return `https://meet.jit.si/${roomId}#${config.toString()}`;
   };
 
   const handleAccept = async (booking: Booking) => {
