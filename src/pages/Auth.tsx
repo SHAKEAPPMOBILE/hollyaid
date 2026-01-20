@@ -105,17 +105,38 @@ const Auth: React.FC = () => {
 
     if (loggedInUser) {
       if (userType === 'specialist') {
-        const { data: specialist } = await supabase
+        const {
+          data: specialist,
+          error: specialistError,
+        } = await supabase
           .from('specialists')
           .select('id')
           .eq('user_id', loggedInUser.id)
-          .single();
+          .maybeSingle();
+
+        if (specialistError) {
+          console.error('Specialist lookup failed:', {
+            userId: loggedInUser.id,
+            message: specialistError.message,
+            code: (specialistError as any).code,
+            details: (specialistError as any).details,
+          });
+          toast({
+            title: 'Login failed',
+            description: `Couldn't verify specialist access: ${specialistError.message}`,
+            variant: 'destructive',
+          });
+          await supabase.auth.signOut();
+          setLoading(false);
+          return;
+        }
 
         if (!specialist) {
+          console.warn('Specialist not found for user_id:', loggedInUser.id);
           toast({
-            title: "Access denied",
-            description: "This account is not registered as a specialist.",
-            variant: "destructive",
+            title: 'Access denied',
+            description: 'This account is not registered as a specialist.',
+            variant: 'destructive',
           });
           await supabase.auth.signOut();
           setLoading(false);
