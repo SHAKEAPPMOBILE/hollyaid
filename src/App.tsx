@@ -13,8 +13,8 @@ import SpecialistSignup from "./pages/SpecialistSignup";
 import SpecialistDashboard from "./pages/SpecialistDashboard";
 import EmployeeSignup from "./pages/EmployeeSignup";
 import PaymentSuccess from "./pages/PaymentSuccess";
+import CompleteProfile from "./pages/CompleteProfile";
 import NotFound from "./pages/NotFound";
-
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -34,6 +34,7 @@ const App = () => (
             <Route path="/specialist-dashboard" element={<SpecialistDashboard />} />
             <Route path="/employee-signup" element={<EmployeeSignup />} />
             <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/complete-profile" element={<CompleteProfile />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

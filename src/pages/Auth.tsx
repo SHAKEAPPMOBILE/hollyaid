@@ -55,6 +55,16 @@ const Auth: React.FC = () => {
     setRegisteredUserId(null);
   };
 
+  const checkProfileComplete = async (userId: string): Promise<boolean> => {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('job_title')
+      .eq('user_id', userId)
+      .single() as { data: { job_title: string | null } | null };
+    
+    return !!profile?.job_title;
+  };
+
   const handleLogin = async (e: React.FormEvent, userType: 'employee' | 'specialist' | 'company') => {
     e.preventDefault();
     setLoading(true);
@@ -121,11 +131,13 @@ const Auth: React.FC = () => {
           return;
         }
 
+        // Check if profile is complete
+        const profileComplete = await checkProfileComplete(loggedInUser.id);
         toast({
           title: "Welcome back!",
           description: "You've been logged in successfully.",
         });
-        navigate('/admin');
+        navigate(profileComplete ? '/admin' : '/complete-profile');
       } else {
         // Employee login - allow specialists to be blocked but allow company admins
         const { data: specialist } = await supabase
@@ -145,12 +157,13 @@ const Auth: React.FC = () => {
           return;
         }
 
-        // Company admins can also log in as employees to use the platform
+        // Check if profile is complete, redirect accordingly
+        const profileComplete = await checkProfileComplete(loggedInUser.id);
         toast({
           title: "Welcome back!",
           description: "You've been logged in successfully.",
         });
-        navigate('/dashboard');
+        navigate(profileComplete ? '/dashboard' : '/complete-profile');
       }
     }
     
@@ -277,7 +290,7 @@ const Auth: React.FC = () => {
           title: "Plan activated!",
           description: `Your ${plan.name} plan is now active with ${plan.minutes} minutes.`,
         });
-        navigate('/admin');
+        navigate('/complete-profile');
         return;
       }
 
