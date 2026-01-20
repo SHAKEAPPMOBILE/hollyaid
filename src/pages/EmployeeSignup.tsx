@@ -74,15 +74,12 @@ const EmployeeSignup: React.FC = () => {
       }
 
       // Sign in immediately
-      const { error: signInError } = await signIn(email, password);
+      const { user: newUser, error: signInError } = await signIn(email, password);
       
       if (signInError) {
         throw signInError;
       }
 
-      // Get the user
-      const { data: { user: newUser } } = await supabase.auth.getUser();
-      
       if (newUser) {
         // Check if employee was pre-invited
         const { data: existingInvite } = await supabase

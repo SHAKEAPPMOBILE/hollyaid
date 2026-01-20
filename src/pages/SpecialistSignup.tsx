@@ -88,15 +88,12 @@ const SpecialistSignup: React.FC = () => {
       }
 
       // Sign in immediately
-      const { error: signInError } = await signIn(specialistData.email, password);
+      const { user, error: signInError } = await signIn(specialistData.email, password);
       
       if (signInError) {
         throw signInError;
       }
 
-      // Get the user
-      const { data: { user } } = await supabase.auth.getUser();
-      
       if (user) {
         const tier = SPECIALIST_TIERS[selectedTier];
         

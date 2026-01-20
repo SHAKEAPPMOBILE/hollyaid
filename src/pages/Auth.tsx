@@ -59,7 +59,7 @@ const Auth: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     
-    const { error } = await signIn(email, password);
+    const { user: loggedInUser, error } = await signIn(email, password);
     
     if (error) {
       toast({
@@ -71,8 +71,6 @@ const Auth: React.FC = () => {
       return;
     }
 
-    const { data: { user: loggedInUser } } = await supabase.auth.getUser();
-    
     if (loggedInUser) {
       if (userType === 'specialist') {
         const { data: specialist } = await supabase
@@ -210,7 +208,7 @@ const Auth: React.FC = () => {
       return;
     }
 
-    const { error: signInError } = await signIn(email, password);
+    const { user: newUser, error: signInError } = await signIn(email, password);
     
     if (signInError) {
       toast({
@@ -222,8 +220,6 @@ const Auth: React.FC = () => {
       return;
     }
 
-    const { data: { user: newUser } } = await supabase.auth.getUser();
-    
     if (newUser) {
       const domain = getEmailDomain(email);
       const { error: companyError } = await supabase
