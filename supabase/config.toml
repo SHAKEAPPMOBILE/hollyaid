@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.send-employee-invite]
 verify_jwt = false
+
+[functions.notify-booking-message]
+verify_jwt = false

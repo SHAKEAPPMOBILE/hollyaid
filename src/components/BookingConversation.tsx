@@ -107,6 +107,17 @@ const BookingConversation: React.FC<BookingConversationProps> = ({
         return [...prev, data as Message];
       });
       setNewMessage('');
+      
+      // Send email notification in background (don't block UI)
+      supabase.functions.invoke('notify-booking-message', {
+        body: {
+          bookingId,
+          senderType: userType,
+          messagePreview: messageText,
+        },
+      }).catch((err) => {
+        console.error('Failed to send message notification:', err);
+      });
     }
     setSending(false);
   };
