@@ -6,10 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Clock, Video, CheckCircle, XCircle, MessageCircle, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, Video, CheckCircle, XCircle, MessageCircle, AlertTriangle, RefreshCw, Star } from 'lucide-react';
 import { format } from 'date-fns';
 import BookingConversation from './BookingConversation';
 import RescheduleBookingModal from './RescheduleBookingModal';
+import LeaveReviewModal from './LeaveReviewModal';
 
 interface Booking {
   id: string;
@@ -19,11 +20,13 @@ interface Booking {
   proposed_datetime: string | null;
   confirmed_datetime: string | null;
   created_at: string;
+  specialist_id: string;
   specialist: {
     full_name: string;
     specialty: string;
     hourly_rate: number;
   } | null;
+  has_review?: boolean;
 }
 
 const BookingsList: React.FC = () => {
@@ -34,6 +37,7 @@ const BookingsList: React.FC = () => {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
   const [bookingToReschedule, setBookingToReschedule] = useState<Booking | null>(null);
+  const [bookingToReview, setBookingToReview] = useState<Booking | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
@@ -46,14 +50,28 @@ const BookingsList: React.FC = () => {
     const { data, error } = await supabase
       .from('bookings')
       .select(`
-        id, status, meeting_link, notes, proposed_datetime, confirmed_datetime, created_at,
+        id, status, meeting_link, notes, proposed_datetime, confirmed_datetime, created_at, specialist_id,
         specialist:specialists(full_name, specialty, hourly_rate)
       `)
       .eq('employee_user_id', user?.id)
       .order('created_at', { ascending: false });
 
     if (!error && data) {
-      setBookings(data as unknown as Booking[]);
+      // Check which bookings have reviews
+      const bookingIds = data.map(b => b.id);
+      const { data: reviews } = await supabase
+        .from('specialist_reviews')
+        .select('booking_id')
+        .in('booking_id', bookingIds);
+
+      const reviewedBookingIds = new Set(reviews?.map(r => r.booking_id) || []);
+
+      const bookingsWithReviewStatus = data.map(b => ({
+        ...b,
+        has_review: reviewedBookingIds.has(b.id),
+      }));
+
+      setBookings(bookingsWithReviewStatus as unknown as Booking[]);
     }
     setLoading(false);
   };
@@ -110,6 +128,7 @@ const BookingsList: React.FC = () => {
 
   const canCancel = (status: string) => status === 'pending' || status === 'approved';
   const canReschedule = (status: string) => status === 'approved';
+  const canReview = (booking: Booking) => booking.status === 'completed' && !booking.has_review;
 
   if (loading) {
     return <div className="space-y-4">{[1, 2, 3].map((i) => <Card key={i} className="animate-pulse"><CardContent className="p-6"><div className="h-24 bg-muted rounded" /></CardContent></Card>)}</div>;
@@ -163,6 +182,23 @@ const BookingsList: React.FC = () => {
                         <RefreshCw size={16} className="mr-1" />
                         Reschedule
                       </Button>
+                    )}
+                    {canReview(booking) && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setBookingToReview(booking)}
+                        className="text-yellow-600 hover:text-yellow-700 border-yellow-300 hover:border-yellow-400"
+                      >
+                        <Star size={16} className="mr-1" />
+                        Leave Review
+                      </Button>
+                    )}
+                    {booking.status === 'completed' && booking.has_review && (
+                      <Badge variant="outline" className="text-yellow-600 border-yellow-300">
+                        <Star size={12} className="mr-1 fill-yellow-400" />
+                        Reviewed
+                      </Badge>
                     )}
                     {canCancel(booking.status) && (
                       <Button 
@@ -228,6 +264,18 @@ const BookingsList: React.FC = () => {
           open={!!bookingToReschedule}
           onClose={() => setBookingToReschedule(null)}
           onSuccess={fetchBookings}
+        />
+      )}
+
+      {/* Leave Review Modal */}
+      {bookingToReview && (
+        <LeaveReviewModal
+          bookingId={bookingToReview.id}
+          specialistId={bookingToReview.specialist_id}
+          specialistName={bookingToReview.specialist?.full_name || 'Specialist'}
+          open={!!bookingToReview}
+          onClose={() => setBookingToReview(null)}
+          onReviewSubmitted={fetchBookings}
         />
       )}
     </>

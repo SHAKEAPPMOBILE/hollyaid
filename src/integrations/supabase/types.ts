@@ -298,6 +298,58 @@ export type Database = {
         }
         Relationships: []
       }
+      specialist_reviews: {
+        Row: {
+          booking_id: string
+          comment: string | null
+          created_at: string
+          employee_user_id: string
+          id: string
+          rating: number
+          specialist_id: string
+        }
+        Insert: {
+          booking_id: string
+          comment?: string | null
+          created_at?: string
+          employee_user_id: string
+          id?: string
+          rating: number
+          specialist_id: string
+        }
+        Update: {
+          booking_id?: string
+          comment?: string | null
+          created_at?: string
+          employee_user_id?: string
+          id?: string
+          rating?: number
+          specialist_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "specialist_reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "specialist_reviews_specialist_id_fkey"
+            columns: ["specialist_id"]
+            isOneToOne: false
+            referencedRelation: "specialists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "specialist_reviews_specialist_id_fkey"
+            columns: ["specialist_id"]
+            isOneToOne: false
+            referencedRelation: "specialists_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       specialists: {
         Row: {
           avatar_url: string | null
