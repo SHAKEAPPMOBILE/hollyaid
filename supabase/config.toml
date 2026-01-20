@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.notify-booking-message]
 verify_jwt = false
+
+[functions.notify-booking-reschedule]
+verify_jwt = false
