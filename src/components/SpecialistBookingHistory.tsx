@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, CheckCircle, XCircle, History } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, XCircle, History, UserPlus, Users } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Booking {
@@ -13,6 +13,7 @@ interface Booking {
   confirmed_datetime: string | null;
   created_at: string;
   session_duration: number;
+  session_type: string;
   employee: {
     email: string;
     full_name: string | null;
@@ -44,6 +45,7 @@ const SpecialistBookingHistory: React.FC<SpecialistBookingHistoryProps> = ({
         confirmed_datetime,
         created_at,
         session_duration,
+        session_type,
         employee:profiles!bookings_employee_user_id_fkey(email, full_name)
       `)
       .eq('specialist_id', specialistId)
@@ -109,6 +111,9 @@ const SpecialistBookingHistory: React.FC<SpecialistBookingHistoryProps> = ({
                     {booking.employee?.full_name || booking.employee?.email || 'Unknown Employee'}
                   </h3>
                   {getStatusBadge(booking.status)}
+                  <Badge variant="outline" className={`text-xs ${booking.session_type === 'first_session' ? 'border-blue-300 text-blue-600' : 'border-green-300 text-green-600'}`}>
+                    {booking.session_type === 'first_session' ? <><UserPlus size={10} className="mr-1" />First</> : <><Users size={10} className="mr-1" />Follow-up</>}
+                  </Badge>
                 </div>
                 
                 {(booking.confirmed_datetime || booking.proposed_datetime) && (

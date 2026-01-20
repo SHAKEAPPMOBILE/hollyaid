@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Clock, CheckCircle, XCircle, MessageCircle, User } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, XCircle, MessageCircle, User, UserPlus, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import BookingConversation from './BookingConversation';
@@ -18,6 +18,7 @@ interface Booking {
   confirmed_datetime: string | null;
   meeting_link: string | null;
   session_duration: number;
+  session_type: string;
   created_at: string;
   employee: {
     email: string;
@@ -57,6 +58,7 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
         confirmed_datetime,
         meeting_link,
         session_duration,
+        session_type,
         created_at,
         employee_user_id
       `)
@@ -248,6 +250,9 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
                       {booking.employee?.full_name || booking.employee?.email || 'Unknown Employee'}
                     </h3>
                     {getStatusBadge(booking.status)}
+                    <Badge variant="outline" className={`text-xs ${booking.session_type === 'first_session' ? 'border-blue-300 text-blue-600' : 'border-green-300 text-green-600'}`}>
+                      {booking.session_type === 'first_session' ? <><UserPlus size={10} className="mr-1" />First</> : <><Users size={10} className="mr-1" />Follow-up</>}
+                    </Badge>
                   </div>
                   
                   {booking.proposed_datetime && (

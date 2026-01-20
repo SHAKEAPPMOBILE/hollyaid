@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Clock, Video, CheckCircle, XCircle, MessageCircle, AlertTriangle, RefreshCw, Star } from 'lucide-react';
+import { Calendar, Clock, Video, CheckCircle, XCircle, MessageCircle, AlertTriangle, RefreshCw, Star, UserPlus, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import BookingConversation from './BookingConversation';
 import RescheduleBookingModal from './RescheduleBookingModal';
@@ -23,6 +23,7 @@ interface Booking {
   created_at: string;
   specialist_id: string;
   session_duration: number;
+  session_type: string;
   specialist: {
     full_name: string;
     specialty: string;
@@ -100,7 +101,7 @@ const BookingsList: React.FC = () => {
     const { data, error } = await supabase
       .from('bookings')
       .select(`
-        id, status, meeting_link, notes, proposed_datetime, confirmed_datetime, created_at, specialist_id, session_duration,
+        id, status, meeting_link, notes, proposed_datetime, confirmed_datetime, created_at, specialist_id, session_duration, session_type,
         specialist:specialists(full_name, specialty, hourly_rate)
       `)
       .eq('employee_user_id', user?.id)
@@ -197,10 +198,13 @@ const BookingsList: React.FC = () => {
             <Card key={booking.id} className="shadow-soft hover:shadow-wellness transition-shadow">
               <CardContent className="p-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex-1">
+                    <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="font-semibold text-lg">{booking.specialist?.full_name}</h3>
                       {getStatusBadge(booking.status)}
+                      <Badge variant="outline" className={`text-xs ${booking.session_type === 'first_session' ? 'border-blue-300 text-blue-600' : 'border-green-300 text-green-600'}`}>
+                        {booking.session_type === 'first_session' ? <><UserPlus size={10} className="mr-1" />First Session</> : <><Users size={10} className="mr-1" />Follow-up</>}
+                      </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground mb-2">{booking.specialist?.specialty}</p>
                     {displayDate && (
