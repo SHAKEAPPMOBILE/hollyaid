@@ -97,7 +97,7 @@ const SpecialistSignup: React.FC = () => {
       if (user) {
         const tier = SPECIALIST_TIERS[selectedTier];
         
-        // Update specialist with user_id and rate tier
+        // Update specialist with user_id, rate tier, and activate
         const { error: updateError } = await supabase
           .from('specialists')
           .update({
@@ -105,6 +105,7 @@ const SpecialistSignup: React.FC = () => {
             invitation_accepted_at: new Date().toISOString(),
             rate_tier: selectedTier,
             hourly_rate: tier.hourlyRate,
+            is_active: true, // Activate specialist after signup
           })
           .eq('id', specialistData.id);
 

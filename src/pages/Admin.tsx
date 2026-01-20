@@ -160,8 +160,8 @@ const Admin: React.FC = () => {
         email: email,
         specialty: specialty,
         bio: bio || null,
-        hourly_rate: 25, // Default rate, specialist will set their tier on signup
-        is_active: true,
+        hourly_rate: 25, // Placeholder, specialist will set their tier on signup
+        is_active: false, // Inactive until specialist completes signup
         avatar_url: avatarUrl,
       });
 
