@@ -85,6 +85,15 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ specialist, o
         });
     }
 
+    // Send email notification to specialist (don't await to avoid blocking)
+    if (booking) {
+      supabase.functions.invoke('notify-specialist-booking', {
+        body: { bookingId: booking.id },
+      }).catch((error) => {
+        console.error('Failed to send notification email:', error);
+      });
+    }
+
     toast({
       title: "Booking request sent!",
       description: `Your request has been sent to ${specialist.full_name}. They will respond shortly.`,
