@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import BookingConversation from './BookingConversation';
 import RescheduleBookingModal from './RescheduleBookingModal';
 import LeaveReviewModal from './LeaveReviewModal';
+import PostSessionReviewPrompt from './PostSessionReviewPrompt';
 
 interface Booking {
   id: string;
@@ -39,12 +40,60 @@ const BookingsList: React.FC = () => {
   const [bookingToReschedule, setBookingToReschedule] = useState<Booking | null>(null);
   const [bookingToReview, setBookingToReview] = useState<Booking | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [completedSessionPrompt, setCompletedSessionPrompt] = useState<Booking | null>(null);
+  const previousBookingStatusRef = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
     if (user) {
       fetchBookings();
+
+      // Subscribe to realtime changes for user's bookings
+      const channel = supabase
+        .channel('employee-bookings')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'bookings',
+            filter: `employee_user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            const newStatus = payload.new.status as string;
+            const bookingId = payload.new.id as string;
+            const oldStatus = previousBookingStatusRef.current.get(bookingId);
+            
+            // If status changed to completed, show review prompt
+            if (oldStatus && oldStatus !== 'completed' && newStatus === 'completed') {
+              // Find the booking in current state to get specialist info
+              const completedBooking = bookings.find(b => b.id === bookingId);
+              if (completedBooking && !completedBooking.has_review) {
+                setCompletedSessionPrompt({
+                  ...completedBooking,
+                  status: 'completed',
+                });
+              }
+            }
+            
+            // Update the ref and refresh bookings
+            previousBookingStatusRef.current.set(bookingId, newStatus);
+            fetchBookings();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [user]);
+
+  // Update the status ref when bookings change
+  useEffect(() => {
+    bookings.forEach(b => {
+      previousBookingStatusRef.current.set(b.id, b.status);
+    });
+  }, [bookings]);
 
   const fetchBookings = async () => {
     const { data, error } = await supabase
@@ -276,6 +325,19 @@ const BookingsList: React.FC = () => {
           open={!!bookingToReview}
           onClose={() => setBookingToReview(null)}
           onReviewSubmitted={fetchBookings}
+        />
+      )}
+
+      {/* Post-Session Review Prompt */}
+      {completedSessionPrompt && (
+        <PostSessionReviewPrompt
+          specialistName={completedSessionPrompt.specialist?.full_name || 'Specialist'}
+          open={!!completedSessionPrompt}
+          onClose={() => setCompletedSessionPrompt(null)}
+          onLeaveReview={() => {
+            setBookingToReview(completedSessionPrompt);
+            setCompletedSessionPrompt(null);
+          }}
         />
       )}
     </>
