@@ -7,6 +7,58 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Generate ICS calendar file content
+function generateICSContent(options: {
+  startDate: Date;
+  endDate: Date;
+  summary: string;
+  description: string;
+  location: string;
+  organizerEmail: string;
+  organizerName: string;
+  attendeeEmail: string;
+  attendeeName: string;
+  uid: string;
+}): string {
+  const formatICSDate = (date: Date): string => {
+    return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  };
+
+  const escapeICSText = (text: string): string => {
+    return text.replace(/[\\;,\n]/g, (match) => {
+      if (match === '\n') return '\\n';
+      return '\\' + match;
+    });
+  };
+
+  const now = new Date();
+  
+  return `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//HollyAid//Booking System//EN
+CALSCALE:GREGORIAN
+METHOD:REQUEST
+BEGIN:VEVENT
+UID:${options.uid}
+DTSTAMP:${formatICSDate(now)}
+DTSTART:${formatICSDate(options.startDate)}
+DTEND:${formatICSDate(options.endDate)}
+SUMMARY:${escapeICSText(options.summary)}
+DESCRIPTION:${escapeICSText(options.description)}
+LOCATION:${escapeICSText(options.location)}
+ORGANIZER;CN=${escapeICSText(options.organizerName)}:mailto:${options.organizerEmail}
+ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;CN=${escapeICSText(options.attendeeName)}:mailto:${options.attendeeEmail}
+STATUS:CONFIRMED
+SEQUENCE:0
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: ${escapeICSText(options.summary)}
+END:VALARM
+END:VEVENT
+END:VCALENDAR`;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -22,6 +74,8 @@ serve(async (req) => {
   try {
     const { bookingId } = await req.json();
     if (!bookingId) throw new Error("Booking ID is required");
+
+    console.log(`Processing booking confirmation for ${bookingId}`);
 
     // Get booking details with related data
     const { data: booking, error: bookingError } = await supabaseClient
@@ -76,6 +130,34 @@ serve(async (req) => {
         })
       : 'TBD';
 
+    // Generate calendar invite if we have a confirmed datetime
+    let calendarAttachment = null;
+    if (booking.confirmed_datetime) {
+      const startDate = new Date(booking.confirmed_datetime);
+      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // 1 hour session
+      
+      const icsContent = generateICSContent({
+        startDate,
+        endDate,
+        summary: `HollyAid Session: ${specialist.specialty || 'Wellness Consultation'}`,
+        description: `Wellness session with ${specialist.full_name}\\n\\nMeeting Link: ${booking.meeting_link || 'To be provided'}\\n\\n${booking.notes ? `Notes: ${booking.notes}` : ''}`,
+        location: booking.meeting_link || 'Online (link to be provided)',
+        organizerEmail: 'bookings@hollyaid.com',
+        organizerName: 'HollyAid',
+        attendeeEmail: employee.email,
+        attendeeName: employee.full_name || 'Employee',
+        uid: `booking-${bookingId}@hollyaid.com`,
+      });
+
+      // Convert to base64 for email attachment
+      calendarAttachment = {
+        filename: 'hollyaid-session.ics',
+        content: btoa(icsContent),
+      };
+
+      console.log('Calendar invite generated successfully');
+    }
+
     const emailTemplate = (recipientName: string, recipientRole: string) => `
       <!DOCTYPE html>
       <html>
@@ -105,6 +187,12 @@ serve(async (req) => {
           <p style="color: #666; font-size: 14px; text-align: center;">Or copy this link: <a href="${booking.meeting_link}" style="color: #10b981;">${booking.meeting_link}</a></p>
           ` : ''}
 
+          ${calendarAttachment ? `
+          <div style="background: #ecfdf5; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+            <p style="margin: 0; color: #059669; font-weight: 500;">📆 A calendar invite is attached to this email. Add it to your calendar to get a reminder!</p>
+          </div>
+          ` : ''}
+
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
           <p style="color: #666; font-size: 14px; margin-bottom: 0;">Best regards,<br>The HollyAid Team</p>
         </div>
@@ -112,29 +200,51 @@ serve(async (req) => {
       </html>
     `;
 
+    // Prepare email options with optional calendar attachment
+    const emailOptions = (to: string, subject: string, html: string) => {
+      const options: any = {
+        from: "HollyAid <onboarding@resend.dev>",
+        to: [to],
+        subject,
+        html,
+      };
+
+      if (calendarAttachment) {
+        options.attachments = [{
+          filename: calendarAttachment.filename,
+          content: calendarAttachment.content,
+          type: 'text/calendar',
+        }];
+      }
+
+      return options;
+    };
+
     // Send email to employee
-    const employeeEmail = await resend.emails.send({
-      from: "HollyAid <onboarding@resend.dev>",
-      to: [employee.email],
-      subject: "Your Booking is Confirmed! 🎉",
-      html: emailTemplate(employee.full_name || 'there', 'employee'),
-    });
+    const employeeEmail = await resend.emails.send(
+      emailOptions(
+        employee.email,
+        "Your Booking is Confirmed! 🎉",
+        emailTemplate(employee.full_name || 'there', 'employee')
+      )
+    );
 
     console.log("Employee email sent:", employeeEmail);
 
     // Send email to specialist
-    const specialistEmail = await resend.emails.send({
-      from: "HollyAid <onboarding@resend.dev>",
-      to: [specialist.email],
-      subject: "New Appointment Confirmed",
-      html: emailTemplate(specialist.full_name, 'specialist'),
-    });
+    const specialistEmail = await resend.emails.send(
+      emailOptions(
+        specialist.email,
+        "New Appointment Confirmed",
+        emailTemplate(specialist.full_name, 'specialist')
+      )
+    );
 
     console.log("Specialist email sent:", specialistEmail);
 
     return new Response(JSON.stringify({ 
       success: true, 
-      message: "Confirmation emails sent successfully",
+      message: "Confirmation emails with calendar invites sent successfully",
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
