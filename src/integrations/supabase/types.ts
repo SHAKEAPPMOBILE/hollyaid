@@ -101,6 +101,7 @@ export type Database = {
           notes: string | null
           proposed_datetime: string | null
           session_duration: number
+          session_type: string
           slot_id: string | null
           specialist_id: string
           status: string
@@ -116,6 +117,7 @@ export type Database = {
           notes?: string | null
           proposed_datetime?: string | null
           session_duration?: number
+          session_type?: string
           slot_id?: string | null
           specialist_id: string
           status?: string
@@ -131,6 +133,7 @@ export type Database = {
           notes?: string | null
           proposed_datetime?: string | null
           session_duration?: number
+          session_type?: string
           slot_id?: string | null
           specialist_id?: string
           status?: string

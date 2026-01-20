@@ -70,6 +70,25 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ specialist, o
   const [sessionDuration, setSessionDuration] = useState<number>(60);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isFirstSession, setIsFirstSession] = useState<boolean | null>(null);
+
+  // Check if this is the first session with this specialist
+  React.useEffect(() => {
+    const checkPreviousSessions = async () => {
+      if (!user) return;
+      
+      const { count } = await supabase
+        .from('bookings')
+        .select('*', { count: 'exact', head: true })
+        .eq('employee_user_id', user.id)
+        .eq('specialist_id', specialist.id)
+        .eq('status', 'completed');
+      
+      setIsFirstSession(count === 0);
+    };
+    
+    checkPreviousSessions();
+  }, [user, specialist.id]);
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const maxDate = format(addDays(new Date(), 90), 'yyyy-MM-dd');
@@ -95,7 +114,9 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ specialist, o
 
     const proposedDateTime = new Date(`${proposedDate}T${proposedTime}`);
 
-    // Create booking request with session duration
+    // Create booking request with session duration and type
+    const sessionType = isFirstSession ? 'first_session' : 'follow_up';
+    
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .insert({
@@ -103,6 +124,7 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ specialist, o
         employee_user_id: user.id,
         proposed_datetime: proposedDateTime.toISOString(),
         session_duration: sessionDuration,
+        session_type: sessionType,
         notes: notes || null,
         status: 'pending',
       })
