@@ -11,11 +11,9 @@ import BookingRequestModal from './BookingRequestModal';
 interface Specialist {
   id: string;
   full_name: string;
-  email: string;
   specialty: string;
   bio: string | null;
   avatar_url: string | null;
-  hourly_rate: number;
   rate_tier: string | null;
 }
 
@@ -44,10 +42,10 @@ const SpecialistsGrid: React.FC = () => {
   }, []);
 
   const fetchSpecialists = async () => {
+    // Use the specialists_public view which excludes sensitive data (email, hourly_rate, invitation_token)
     const { data, error } = await supabase
-      .from('specialists')
-      .select('id, full_name, email, specialty, bio, avatar_url, hourly_rate, rate_tier')
-      .eq('is_active', true);
+      .from('specialists_public')
+      .select('id, full_name, specialty, bio, avatar_url, rate_tier');
 
     if (!error && data) {
       setSpecialists(data);
