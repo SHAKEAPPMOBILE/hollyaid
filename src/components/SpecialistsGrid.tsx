@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Calendar, Clock, DollarSign, Star, Video } from 'lucide-react';
+import { Calendar, Clock } from 'lucide-react';
 import BookingRequestModal from './BookingRequestModal';
 
 interface Specialist {
@@ -16,7 +16,23 @@ interface Specialist {
   bio: string | null;
   avatar_url: string | null;
   hourly_rate: number;
+  rate_tier: string | null;
 }
+
+// Minutes deducted per 1-hour session based on tier
+const TIER_MINUTES: Record<string, number> = {
+  standard: 60,
+  advanced: 96,
+  expert: 144,
+  master: 192,
+};
+
+const TIER_LABELS: Record<string, string> = {
+  standard: 'Standard',
+  advanced: 'Advanced',
+  expert: 'Expert',
+  master: 'Master',
+};
 
 const SpecialistsGrid: React.FC = () => {
   const [specialists, setSpecialists] = useState<Specialist[]>([]);
@@ -30,13 +46,21 @@ const SpecialistsGrid: React.FC = () => {
   const fetchSpecialists = async () => {
     const { data, error } = await supabase
       .from('specialists')
-      .select('*')
+      .select('id, full_name, email, specialty, bio, avatar_url, hourly_rate, rate_tier')
       .eq('is_active', true);
 
     if (!error && data) {
       setSpecialists(data);
     }
     setLoading(false);
+  };
+
+  const getTierInfo = (tier: string | null) => {
+    const tierKey = tier || 'standard';
+    return {
+      label: TIER_LABELS[tierKey] || 'Standard',
+      minutes: TIER_MINUTES[tierKey] || 60,
+    };
   };
 
   const getInitials = (name: string) => {
@@ -118,8 +142,10 @@ const SpecialistsGrid: React.FC = () => {
                 </CardDescription>
               )}
               <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center gap-1 text-primary font-semibold">
-                  <span>${specialist.hourly_rate}/hour</span>
+                <div className="flex items-center gap-1 text-sm">
+                  <Clock size={14} className="text-muted-foreground" />
+                  <span className="text-muted-foreground">{getTierInfo(specialist.rate_tier).label}:</span>
+                  <span className="font-semibold text-foreground">{getTierInfo(specialist.rate_tier).minutes} min/session</span>
                 </div>
                 <Dialog>
                   <DialogTrigger asChild>
