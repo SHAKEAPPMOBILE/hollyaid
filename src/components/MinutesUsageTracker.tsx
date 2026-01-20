@@ -46,10 +46,16 @@ const MinutesUsageTracker: React.FC<MinutesUsageTrackerProps> = ({ company }) =>
   
   const formatMinutes = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours === 0) return `${mins}m`;
-    if (mins === 0) return `${hours}h`;
-    return `${hours}h ${mins}m`;
+    const rawMins = minutes % 60;
+    // Round to nearest 15-minute increment (00, 15, 30, 45)
+    const roundedMins = Math.round(rawMins / 15) * 15;
+    const displayMins = roundedMins === 60 ? 0 : roundedMins;
+    const displayHours = roundedMins === 60 ? hours + 1 : hours;
+    const minsStr = displayMins.toString().padStart(2, '0');
+    
+    if (displayHours === 0) return `${minsStr}m`;
+    if (displayMins === 0) return `${displayHours}h`;
+    return `${displayHours}h ${minsStr}m`;
   };
 
   const getDaysRemaining = () => {
