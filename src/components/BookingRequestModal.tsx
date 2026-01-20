@@ -38,11 +38,11 @@ interface Specialist {
 }
 
 // Minutes deducted per 1-hour session based on tier
-const TIER_MINUTES: Record<string, number> = {
-  standard: 60,
-  advanced: 96,
-  expert: 144,
-  master: 192,
+const TIER_MULTIPLIERS: Record<string, number> = {
+  standard: 1.0,
+  advanced: 1.6,
+  expert: 2.4,
+  master: 3.2,
 };
 
 const TIER_LABELS: Record<string, string> = {
@@ -51,6 +51,11 @@ const TIER_LABELS: Record<string, string> = {
   expert: 'Expert',
   master: 'Master',
 };
+
+const DURATION_OPTIONS = [
+  { value: 30, label: '30 minutes', description: 'Half session' },
+  { value: 60, label: '1 hour', description: 'Full session' },
+];
 
 interface BookingRequestModalProps {
   specialist: Specialist;
@@ -62,11 +67,16 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ specialist, o
   const { toast } = useToast();
   const [proposedDate, setProposedDate] = useState('');
   const [proposedTime, setProposedTime] = useState('');
+  const [sessionDuration, setSessionDuration] = useState<number>(60);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const maxDate = format(addDays(new Date(), 90), 'yyyy-MM-dd');
+
+  // Calculate minutes that will be deducted
+  const tierMultiplier = TIER_MULTIPLIERS[specialist.rate_tier || 'standard'];
+  const minutesToDeduct = Math.ceil(sessionDuration * tierMultiplier);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,13 +95,14 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ specialist, o
 
     const proposedDateTime = new Date(`${proposedDate}T${proposedTime}`);
 
-    // Create booking request
+    // Create booking request with session duration
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .insert({
         specialist_id: specialist.id,
         employee_user_id: user.id,
         proposed_datetime: proposedDateTime.toISOString(),
+        session_duration: sessionDuration,
         notes: notes || null,
         status: 'pending',
       })
@@ -179,6 +190,31 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ specialist, o
           </div>
         </div>
 
+        {/* Session Duration */}
+        <div className="space-y-3">
+          <Label className="text-base font-semibold flex items-center gap-2">
+            <Clock size={18} />
+            Session Duration
+          </Label>
+          <div className="grid grid-cols-2 gap-3">
+            {DURATION_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setSessionDuration(option.value)}
+                className={`p-4 rounded-lg border-2 text-left transition-all ${
+                  sessionDuration === option.value
+                    ? 'border-primary bg-primary/5'
+                    : 'border-muted hover:border-primary/50'
+                }`}
+              >
+                <p className="font-semibold">{option.label}</p>
+                <p className="text-xs text-muted-foreground">{option.description}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Notes */}
         <div className="space-y-2">
           <Label htmlFor="notes">Message to the specialist (optional)</Label>
@@ -197,10 +233,10 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ specialist, o
         <Card className="bg-secondary/30">
           <CardContent className="p-4">
             <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Minutes per session</span>
+              <span className="text-muted-foreground">Wellness minutes</span>
               <div className="text-right">
                 <span className="font-semibold text-lg">
-                  {TIER_MINUTES[specialist.rate_tier || 'standard']} min
+                  {minutesToDeduct} min
                 </span>
                 <span className="text-sm text-muted-foreground ml-2">
                   ({TIER_LABELS[specialist.rate_tier || 'standard']} tier)
