@@ -138,24 +138,32 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
   const handleMarkCompleted = async (bookingId: string) => {
     setProcessing(bookingId);
     
-    const { error } = await supabase
-      .from('bookings')
-      .update({ status: 'completed' })
-      .eq('id', bookingId);
+    try {
+      // Call edge function to complete booking and deduct minutes
+      const { data, error } = await supabase.functions.invoke('complete-booking', {
+        body: { bookingId, sessionMinutes: 60 }, // Default 1 hour session
+      });
 
-    if (error) {
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      toast({
+        title: "Session marked as completed",
+        description: `${data.minutesDeducted} minutes deducted (${data.tier} tier, ${data.multiplier}x multiplier).`,
+      });
+      fetchBookings();
+      onBookingUpdate?.();
+    } catch (error: any) {
       toast({
         title: "Failed to mark as completed",
         description: error.message,
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Session marked as completed",
-        description: "This booking has been moved to your history.",
-      });
-      fetchBookings();
-      onBookingUpdate?.();
     }
     
     setProcessing(null);
