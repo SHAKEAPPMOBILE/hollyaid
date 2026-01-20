@@ -6,9 +6,11 @@ import Logo from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut, MessageSquare } from 'lucide-react';
+import { LogOut, MessageSquare, History } from 'lucide-react';
 import SpecialistBookingRequests from '@/components/SpecialistBookingRequests';
+import SpecialistBookingHistory from '@/components/SpecialistBookingHistory';
 
 interface Specialist {
   id: string;
@@ -130,19 +132,33 @@ const SpecialistDashboard: React.FC = () => {
           </Card>
         </div>
 
-        {/* Booking Requests */}
-        <div className="space-y-6">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-semibold">Booking Requests</h2>
-            {pendingBookingsCount > 0 && (
-              <Badge className="bg-primary text-primary-foreground">{pendingBookingsCount}</Badge>
-            )}
-          </div>
-          <SpecialistBookingRequests
-            specialistId={specialist.id}
-            onBookingUpdate={() => fetchPendingBookingsCount(specialist.id)}
-          />
-        </div>
+        {/* Tabs for Requests and History */}
+        <Tabs defaultValue="requests" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="requests" className="flex items-center gap-2">
+              <MessageSquare size={16} />
+              Booking Requests
+              {pendingBookingsCount > 0 && (
+                <Badge className="ml-1 bg-primary text-primary-foreground">{pendingBookingsCount}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <History size={16} />
+              Booking History
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="requests">
+            <SpecialistBookingRequests
+              specialistId={specialist.id}
+              onBookingUpdate={() => fetchPendingBookingsCount(specialist.id)}
+            />
+          </TabsContent>
+
+          <TabsContent value="history">
+            <SpecialistBookingHistory specialistId={specialist.id} />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
