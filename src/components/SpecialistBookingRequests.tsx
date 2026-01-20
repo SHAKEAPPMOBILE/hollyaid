@@ -260,6 +260,9 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
                         <Clock size={14} className="text-muted-foreground" />
                         {format(new Date(booking.proposed_datetime), 'h:mm a')}
                       </span>
+                      <Badge variant="outline" className="text-xs">
+                        {booking.session_duration === 30 ? '30 min' : '1 hour'}
+                      </Badge>
                     </div>
                   )}
                   
