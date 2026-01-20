@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.notify-booking-cancellation]
 verify_jwt = false
+
+[functions.send-employee-invite]
+verify_jwt = false
