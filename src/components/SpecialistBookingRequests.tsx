@@ -8,6 +8,7 @@ import { Calendar, Clock, CheckCircle, XCircle, MessageCircle, User } from 'luci
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import BookingConversation from './BookingConversation';
+import CompleteSessionModal from './CompleteSessionModal';
 
 interface Booking {
   id: string;
@@ -37,6 +38,7 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [processing, setProcessing] = useState<string | null>(null);
+  const [bookingToComplete, setBookingToComplete] = useState<Booking | null>(null);
 
   useEffect(() => {
     fetchBookings();
@@ -176,38 +178,9 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
     setProcessing(null);
   };
 
-  const handleMarkCompleted = async (bookingId: string) => {
-    setProcessing(bookingId);
-    
-    try {
-      // Call edge function to complete booking and deduct minutes
-      const { data, error } = await supabase.functions.invoke('complete-booking', {
-        body: { bookingId, sessionMinutes: 60 }, // Default 1 hour session
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
-
-      toast({
-        title: "Session marked as completed",
-        description: `${data.minutesDeducted} minutes deducted (${data.tier} tier, ${data.multiplier}x multiplier).`,
-      });
-      fetchBookings();
-      onBookingUpdate?.();
-    } catch (error: any) {
-      toast({
-        title: "Failed to mark as completed",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-    
-    setProcessing(null);
+  const handleSessionCompleted = () => {
+    fetchBookings();
+    onBookingUpdate?.();
   };
 
   const getStatusBadge = (status: string) => {
@@ -385,14 +358,13 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
                     <Button
                       variant="wellness"
                       onClick={() => {
-                        handleMarkCompleted(selectedBooking.id);
+                        setBookingToComplete(selectedBooking);
                         setSelectedBooking(null);
                       }}
-                      disabled={processing === selectedBooking.id}
                       className="flex-1"
                     >
                       <CheckCircle size={16} className="mr-2" />
-                      Mark Completed
+                      Complete Session
                     </Button>
                   </>
                 )}
@@ -410,6 +382,17 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Complete Session Modal */}
+      {bookingToComplete && (
+        <CompleteSessionModal
+          bookingId={bookingToComplete.id}
+          employeeName={bookingToComplete.employee?.full_name || bookingToComplete.employee?.email || 'Employee'}
+          open={!!bookingToComplete}
+          onClose={() => setBookingToComplete(null)}
+          onCompleted={handleSessionCompleted}
+        />
+      )}
     </>
   );
 };
