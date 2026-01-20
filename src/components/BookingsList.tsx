@@ -22,6 +22,7 @@ interface Booking {
   confirmed_datetime: string | null;
   created_at: string;
   specialist_id: string;
+  session_duration: number;
   specialist: {
     full_name: string;
     specialty: string;
@@ -99,7 +100,7 @@ const BookingsList: React.FC = () => {
     const { data, error } = await supabase
       .from('bookings')
       .select(`
-        id, status, meeting_link, notes, proposed_datetime, confirmed_datetime, created_at, specialist_id,
+        id, status, meeting_link, notes, proposed_datetime, confirmed_datetime, created_at, specialist_id, session_duration,
         specialist:specialists(full_name, specialty, hourly_rate)
       `)
       .eq('employee_user_id', user?.id)
@@ -206,6 +207,9 @@ const BookingsList: React.FC = () => {
                       <div className="flex items-center gap-4 text-sm">
                         <span className="flex items-center gap-1"><Calendar size={14} className="text-muted-foreground" />{format(new Date(displayDate), 'EEEE, MMM d, yyyy')}</span>
                         <span className="flex items-center gap-1"><Clock size={14} className="text-muted-foreground" />{format(new Date(displayDate), 'h:mm a')}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {booking.session_duration === 30 ? '30 min' : '1 hour'}
+                        </Badge>
                       </div>
                     )}
                   </div>

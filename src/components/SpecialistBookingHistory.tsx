@@ -12,6 +12,7 @@ interface Booking {
   proposed_datetime: string | null;
   confirmed_datetime: string | null;
   created_at: string;
+  session_duration: number;
   employee: {
     email: string;
     full_name: string | null;
@@ -42,6 +43,7 @@ const SpecialistBookingHistory: React.FC<SpecialistBookingHistoryProps> = ({
         proposed_datetime,
         confirmed_datetime,
         created_at,
+        session_duration,
         employee:profiles!bookings_employee_user_id_fkey(email, full_name)
       `)
       .eq('specialist_id', specialistId)
@@ -119,6 +121,9 @@ const SpecialistBookingHistory: React.FC<SpecialistBookingHistoryProps> = ({
                       <Clock size={14} />
                       {format(new Date(booking.confirmed_datetime || booking.proposed_datetime!), 'h:mm a')}
                     </span>
+                    <Badge variant="outline" className="text-xs">
+                      {booking.session_duration === 30 ? '30 min' : '1 hour'}
+                    </Badge>
                   </div>
                 )}
               </div>
