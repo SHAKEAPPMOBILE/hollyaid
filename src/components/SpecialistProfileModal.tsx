@@ -3,7 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, X } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar, Clock, X, Star } from 'lucide-react';
+import SpecialistReviews from './SpecialistReviews';
 
 interface Specialist {
   id: string;
@@ -68,7 +70,7 @@ const SpecialistProfileModal: React.FC<SpecialistProfileModalProps> = ({
     <>
       {/* Profile Modal */}
       <Dialog open={open && !imageZoomed} onOpenChange={(isOpen) => !isOpen && onClose()}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="sr-only">Specialist Profile</DialogTitle>
           </DialogHeader>
@@ -107,12 +109,30 @@ const SpecialistProfileModal: React.FC<SpecialistProfileModalProps> = ({
               <span className="font-semibold">{tierInfo.minutes} min/session</span>
             </div>
 
-            {/* Bio */}
-            {specialist.bio && (
-              <p className="text-muted-foreground text-sm leading-relaxed px-4">
-                {specialist.bio}
-              </p>
-            )}
+            {/* Tabs for Bio & Reviews */}
+            <Tabs defaultValue="about" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="about">About</TabsTrigger>
+                <TabsTrigger value="reviews" className="flex items-center gap-1">
+                  <Star size={14} />
+                  Reviews
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="about" className="mt-4">
+                {specialist.bio ? (
+                  <p className="text-muted-foreground text-sm leading-relaxed text-left">
+                    {specialist.bio}
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground text-sm italic">
+                    No bio available
+                  </p>
+                )}
+              </TabsContent>
+              <TabsContent value="reviews" className="mt-4">
+                <SpecialistReviews specialistId={specialist.id} />
+              </TabsContent>
+            </Tabs>
 
             {/* Book Button */}
             <Button 
