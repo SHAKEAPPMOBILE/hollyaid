@@ -6,9 +6,29 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar, Clock, Send } from 'lucide-react';
 import { format, addDays } from 'date-fns';
+
+// Generate time slots with 15-minute increments
+const generateTimeSlots = () => {
+  const slots: { value: string; label: string }[] = [];
+  for (let hour = 6; hour <= 21; hour++) {
+    for (const minute of [0, 15, 30, 45]) {
+      const h = hour.toString().padStart(2, '0');
+      const m = minute.toString().padStart(2, '0');
+      const value = `${h}:${m}`;
+      const period = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+      const label = `${displayHour}:${m} ${period}`;
+      slots.push({ value, label });
+    }
+  }
+  return slots;
+};
+
+const TIME_SLOTS = generateTimeSlots();
 
 interface Specialist {
   id: string;
@@ -144,13 +164,18 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ specialist, o
             </div>
             <div className="space-y-2">
               <Label htmlFor="time">Time</Label>
-              <Input
-                id="time"
-                type="time"
-                value={proposedTime}
-                onChange={(e) => setProposedTime(e.target.value)}
-                required
-              />
+              <Select value={proposedTime} onValueChange={setProposedTime}>
+                <SelectTrigger id="time">
+                  <SelectValue placeholder="Select time" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIME_SLOTS.map((slot) => (
+                    <SelectItem key={slot.value} value={slot.value}>
+                      {slot.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
