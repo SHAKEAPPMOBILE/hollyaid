@@ -1,7 +1,8 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Clock, TrendingUp, Zap, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Clock, TrendingUp, Zap, AlertTriangle, XCircle } from 'lucide-react';
 import { PLANS } from '@/lib/plans';
 
 interface MinutesUsageTrackerProps {
@@ -40,10 +41,30 @@ const MinutesUsageTracker: React.FC<MinutesUsageTrackerProps> = ({ company }) =>
   };
 
   const daysRemaining = getDaysRemaining();
-  const isLowOnMinutes = usagePercentage > 80;
+  const isLowOnMinutes = usagePercentage >= 80;
+  const isCriticallyLow = usagePercentage >= 95;
 
   return (
     <div className="space-y-6">
+      {/* Low Minutes Warning Alert */}
+      {isLowOnMinutes && (
+        <Alert variant={isCriticallyLow ? "destructive" : "default"} className={isCriticallyLow ? "" : "border-amber-500 bg-amber-500/10"}>
+          {isCriticallyLow ? (
+            <XCircle className="h-4 w-4" />
+          ) : (
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+          )}
+          <AlertTitle className={isCriticallyLow ? "" : "text-amber-700 dark:text-amber-400"}>
+            {isCriticallyLow ? "Minutes Almost Depleted" : "Low Minutes Warning"}
+          </AlertTitle>
+          <AlertDescription className={isCriticallyLow ? "" : "text-amber-600 dark:text-amber-300"}>
+            {isCriticallyLow 
+              ? `You have only ${formatMinutes(minutesRemaining)} remaining. Consider upgrading your plan to avoid service interruption.`
+              : `You've used ${Math.round(usagePercentage)}% of your monthly wellness minutes. ${formatMinutes(minutesRemaining)} remaining.`
+            }
+          </AlertDescription>
+        </Alert>
+      )}
       {/* Main Usage Card */}
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
         <CardHeader className="pb-2">
