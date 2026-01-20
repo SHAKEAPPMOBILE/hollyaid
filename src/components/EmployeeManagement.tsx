@@ -93,9 +93,21 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ company }) => {
         variant: "destructive",
       });
     } else {
+      // Send invitation email
+      try {
+        await supabase.functions.invoke('send-employee-invite', {
+          body: { 
+            employeeEmail: inviteEmail.toLowerCase(),
+            companyId: company.id
+          }
+        });
+      } catch (emailError) {
+        console.error('Failed to send invitation email:', emailError);
+      }
+
       toast({
         title: "Invitation sent!",
-        description: `An invitation has been sent to ${inviteEmail}`,
+        description: `An invitation email has been sent to ${inviteEmail}`,
       });
       setInviteEmail('');
       fetchEmployees();

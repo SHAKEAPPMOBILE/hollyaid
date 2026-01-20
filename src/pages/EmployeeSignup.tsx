@@ -84,20 +84,44 @@ const EmployeeSignup: React.FC = () => {
       const { data: { user: newUser } } = await supabase.auth.getUser();
       
       if (newUser) {
-        // Auto-join the company
-        const { error: joinError } = await supabase
+        // Check if employee was pre-invited
+        const { data: existingInvite } = await supabase
           .from('company_employees')
-          .insert({
-            company_id: matchingCompany.id,
-            email: email.toLowerCase(),
-            user_id: newUser.id,
-            status: 'accepted',
-            accepted_at: new Date().toISOString(),
-            auto_joined: true,
-          });
+          .select('id')
+          .eq('company_id', matchingCompany.id)
+          .eq('email', email.toLowerCase())
+          .maybeSingle();
 
-        if (joinError && !joinError.message.includes('duplicate')) {
-          console.error('Error joining company:', joinError);
+        if (existingInvite) {
+          // Update existing invitation record
+          const { error: updateError } = await supabase
+            .from('company_employees')
+            .update({
+              user_id: newUser.id,
+              status: 'accepted',
+              accepted_at: new Date().toISOString(),
+            })
+            .eq('id', existingInvite.id);
+
+          if (updateError) {
+            console.error('Error updating invitation:', updateError);
+          }
+        } else {
+          // Auto-join the company (domain-based)
+          const { error: joinError } = await supabase
+            .from('company_employees')
+            .insert({
+              company_id: matchingCompany.id,
+              email: email.toLowerCase(),
+              user_id: newUser.id,
+              status: 'accepted',
+              accepted_at: new Date().toISOString(),
+              auto_joined: true,
+            });
+
+          if (joinError && !joinError.message.includes('duplicate')) {
+            console.error('Error joining company:', joinError);
+          }
         }
 
         // Add employee role
@@ -109,8 +133,8 @@ const EmployeeSignup: React.FC = () => {
           });
 
         toast({
-          title: "Welcome to WellnessHub!",
-          description: `You've been automatically added to ${matchingCompany.name}.`,
+          title: "Welcome to HollyAid!",
+          description: `You've been added to ${matchingCompany.name}.`,
         });
         navigate('/dashboard');
       }
