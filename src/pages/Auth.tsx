@@ -129,6 +129,7 @@ const Auth: React.FC = () => {
         });
         navigate('/admin');
       } else {
+        // Employee login - allow specialists to be blocked but allow company admins
         const { data: specialist } = await supabase
           .from('specialists')
           .select('id')
@@ -146,6 +147,7 @@ const Auth: React.FC = () => {
           return;
         }
 
+        // Company admins can also log in as employees to use the platform
         toast({
           title: "Welcome back!",
           description: "You've been logged in successfully.",
