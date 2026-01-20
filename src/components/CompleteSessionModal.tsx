@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle, Clock, User } from 'lucide-react';
@@ -15,17 +13,7 @@ interface CompleteSessionModalProps {
   onCompleted: () => void;
 }
 
-// Duration options in minutes
-const DURATION_OPTIONS = [
-  { value: '15', label: '15 minutes' },
-  { value: '30', label: '30 minutes' },
-  { value: '45', label: '45 minutes' },
-  { value: '60', label: '1 hour' },
-  { value: '75', label: '1 hour 15 min' },
-  { value: '90', label: '1 hour 30 min' },
-  { value: '105', label: '1 hour 45 min' },
-  { value: '120', label: '2 hours' },
-];
+const SESSION_DURATION_MINUTES = 60;
 
 const CompleteSessionModal: React.FC<CompleteSessionModalProps> = ({
   bookingId,
@@ -35,7 +23,6 @@ const CompleteSessionModal: React.FC<CompleteSessionModalProps> = ({
   onCompleted,
 }) => {
   const { toast } = useToast();
-  const [duration, setDuration] = useState('60');
   const [submitting, setSubmitting] = useState(false);
 
   const handleComplete = async () => {
@@ -43,7 +30,7 @@ const CompleteSessionModal: React.FC<CompleteSessionModalProps> = ({
 
     try {
       const { data, error } = await supabase.functions.invoke('complete-booking', {
-        body: { bookingId, sessionMinutes: parseInt(duration) },
+        body: { bookingId, sessionMinutes: SESSION_DURATION_MINUTES },
       });
 
       if (error) {
@@ -95,27 +82,15 @@ const CompleteSessionModal: React.FC<CompleteSessionModalProps> = ({
             </div>
           </div>
 
-          {/* Duration Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="duration" className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              Session Duration
-            </Label>
-            <Select value={duration} onValueChange={setDuration}>
-              <SelectTrigger id="duration">
-                <SelectValue placeholder="Select duration" />
-              </SelectTrigger>
-              <SelectContent>
-                {DURATION_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              The appropriate wellness minutes will be deducted based on your tier rate.
-            </p>
+          {/* Fixed Duration Info */}
+          <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg border border-primary/10">
+            <Clock className="w-5 h-5 text-primary" />
+            <div>
+              <p className="text-sm font-medium">1 Hour Session</p>
+              <p className="text-xs text-muted-foreground">
+                Standard session duration • Wellness minutes will be deducted based on your tier
+              </p>
+            </div>
           </div>
 
           {/* Actions */}
