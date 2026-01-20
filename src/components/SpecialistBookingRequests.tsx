@@ -135,6 +135,32 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
     setProcessing(null);
   };
 
+  const handleMarkCompleted = async (bookingId: string) => {
+    setProcessing(bookingId);
+    
+    const { error } = await supabase
+      .from('bookings')
+      .update({ status: 'completed' })
+      .eq('id', bookingId);
+
+    if (error) {
+      toast({
+        title: "Failed to mark as completed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Session marked as completed",
+        description: "This booking has been moved to your history.",
+      });
+      fetchBookings();
+      onBookingUpdate?.();
+    }
+    
+    setProcessing(null);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -249,12 +275,25 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
                     </>
                   )}
                   
-                  {booking.status === 'approved' && booking.meeting_link && (
-                    <Button variant="wellness" size="sm" asChild>
-                      <a href={booking.meeting_link} target="_blank" rel="noopener noreferrer">
-                        Join Meeting
-                      </a>
-                    </Button>
+                  {booking.status === 'approved' && (
+                    <>
+                      {booking.meeting_link && (
+                        <Button variant="outline" size="sm" asChild>
+                          <a href={booking.meeting_link} target="_blank" rel="noopener noreferrer">
+                            Join Meeting
+                          </a>
+                        </Button>
+                      )}
+                      <Button
+                        variant="wellness"
+                        size="sm"
+                        onClick={() => handleMarkCompleted(booking.id)}
+                        disabled={processing === booking.id}
+                      >
+                        <CheckCircle size={16} className="mr-1" />
+                        Mark Completed
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
