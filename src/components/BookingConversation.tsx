@@ -79,15 +79,19 @@ const BookingConversation: React.FC<BookingConversationProps> = ({
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !user || !canSendMore) return;
 
+    const messageText = newMessage.trim();
     setSending(true);
-    const { error } = await supabase
+    
+    const { data, error } = await supabase
       .from('booking_messages')
       .insert({
         booking_id: bookingId,
         sender_user_id: user.id,
         sender_type: userType,
-        message: newMessage.trim(),
-      });
+        message: messageText,
+      })
+      .select()
+      .single();
 
     if (error) {
       toast({
@@ -95,7 +99,13 @@ const BookingConversation: React.FC<BookingConversationProps> = ({
         description: error.message,
         variant: "destructive",
       });
-    } else {
+    } else if (data) {
+      // Add message to state immediately (optimistic update)
+      setMessages((prev) => {
+        // Avoid duplicates if realtime already added it
+        if (prev.some(m => m.id === data.id)) return prev;
+        return [...prev, data as Message];
+      });
       setNewMessage('');
     }
     setSending(false);
