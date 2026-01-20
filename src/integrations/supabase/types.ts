@@ -47,6 +47,13 @@ export type Database = {
             referencedRelation: "specialists"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "availability_slots_specialist_id_fkey"
+            columns: ["specialist_id"]
+            isOneToOne: false
+            referencedRelation: "specialists_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       booking_messages: {
@@ -140,6 +147,13 @@ export type Database = {
             columns: ["specialist_id"]
             isOneToOne: false
             referencedRelation: "specialists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_specialist_id_fkey"
+            columns: ["specialist_id"]
+            isOneToOne: false
+            referencedRelation: "specialists_public"
             referencedColumns: ["id"]
           },
         ]
@@ -358,7 +372,36 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      specialists_public: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          full_name: string | null
+          id: string | null
+          is_active: boolean | null
+          rate_tier: Database["public"]["Enums"]["specialist_rate_tier"] | null
+          specialty: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          full_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          rate_tier?: Database["public"]["Enums"]["specialist_rate_tier"] | null
+          specialty?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          full_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          rate_tier?: Database["public"]["Enums"]["specialist_rate_tier"] | null
+          specialty?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {

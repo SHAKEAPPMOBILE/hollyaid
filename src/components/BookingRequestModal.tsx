@@ -34,7 +34,6 @@ interface Specialist {
   id: string;
   full_name: string;
   specialty: string;
-  hourly_rate: number;
   rate_tier?: string | null;
 }
 
