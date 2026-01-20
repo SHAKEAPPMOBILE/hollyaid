@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, Clock, Star } from 'lucide-react';
+import { Calendar, Clock, Star, Filter, X } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import BookingRequestModal from './BookingRequestModal';
 import SpecialistProfileModal from './SpecialistProfileModal';
 import { cn } from '@/lib/utils';
@@ -36,16 +37,48 @@ const TIER_LABELS: Record<string, string> = {
   master: 'Master',
 };
 
+const RATING_OPTIONS = [
+  { value: 'all', label: 'All Ratings' },
+  { value: '4', label: '4+ Stars' },
+  { value: '3', label: '3+ Stars' },
+  { value: '2', label: '2+ Stars' },
+];
+
 const SpecialistsGrid: React.FC = () => {
   const [specialists, setSpecialists] = useState<Specialist[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSpecialist, setSelectedSpecialist] = useState<Specialist | null>(null);
   const [profileSpecialist, setProfileSpecialist] = useState<Specialist | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [specialtyFilter, setSpecialtyFilter] = useState<string>('all');
+  const [ratingFilter, setRatingFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchSpecialists();
   }, []);
+
+  // Get unique specialties for filter dropdown
+  const specialties = useMemo(() => {
+    const unique = [...new Set(specialists.map(s => s.specialty))].sort();
+    return unique;
+  }, [specialists]);
+
+  // Filter specialists based on selected filters
+  const filteredSpecialists = useMemo(() => {
+    return specialists.filter(s => {
+      const matchesSpecialty = specialtyFilter === 'all' || s.specialty === specialtyFilter;
+      const minRating = ratingFilter === 'all' ? 0 : parseInt(ratingFilter);
+      const matchesRating = ratingFilter === 'all' || (s.avg_rating && s.avg_rating >= minRating);
+      return matchesSpecialty && matchesRating;
+    });
+  }, [specialists, specialtyFilter, ratingFilter]);
+
+  const hasActiveFilters = specialtyFilter !== 'all' || ratingFilter !== 'all';
+
+  const clearFilters = () => {
+    setSpecialtyFilter('all');
+    setRatingFilter('all');
+  };
 
   const fetchSpecialists = async () => {
     // Use the specialists_public view which excludes sensitive data
@@ -151,8 +184,53 @@ const SpecialistsGrid: React.FC = () => {
 
   return (
     <>
+      {/* Filter Controls */}
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Filter size={16} />
+          <span>Filter by:</span>
+        </div>
+        
+        <Select value={specialtyFilter} onValueChange={setSpecialtyFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Specialty" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Specialties</SelectItem>
+            {specialties.map(specialty => (
+              <SelectItem key={specialty} value={specialty}>{specialty}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={ratingFilter} onValueChange={setRatingFilter}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Rating" />
+          </SelectTrigger>
+          <SelectContent>
+            {RATING_OPTIONS.map(option => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.value !== 'all' && <Star size={12} className="inline fill-yellow-400 text-yellow-400 mr-1" />}
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
+            <X size={14} />
+            Clear
+          </Button>
+        )}
+
+        <span className="ml-auto text-sm text-muted-foreground">
+          {filteredSpecialists.length} specialist{filteredSpecialists.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {specialists.map((specialist) => (
+        {filteredSpecialists.map((specialist) => (
           <Card 
             key={specialist.id} 
             className="group hover:shadow-wellness transition-all duration-300 border-0 shadow-soft cursor-pointer"
