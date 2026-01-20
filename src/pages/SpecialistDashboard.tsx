@@ -4,23 +4,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import Logo from '@/components/Logo';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Clock, Plus, Trash2, LogOut, CalendarDays, MessageSquare } from 'lucide-react';
-import { format, parseISO, addDays } from 'date-fns';
+import { LogOut, MessageSquare } from 'lucide-react';
 import SpecialistBookingRequests from '@/components/SpecialistBookingRequests';
-
-interface AvailabilitySlot {
-  id: string;
-  start_time: string;
-  end_time: string;
-  is_booked: boolean;
-}
 
 interface Specialist {
   id: string;
@@ -36,16 +24,8 @@ const SpecialistDashboard: React.FC = () => {
   const { toast } = useToast();
 
   const [specialist, setSpecialist] = useState<Specialist | null>(null);
-  const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  
   const [pendingBookingsCount, setPendingBookingsCount] = useState(0);
-
-  // New slot form
-  const [slotDate, setSlotDate] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
 
   useEffect(() => {
     if (!authLoading) {
@@ -68,7 +48,6 @@ const SpecialistDashboard: React.FC = () => {
 
     if (specData) {
       setSpecialist(specData as Specialist);
-      fetchSlots(specData.id);
       fetchPendingBookingsCount(specData.id);
     } else {
       toast({
@@ -81,19 +60,6 @@ const SpecialistDashboard: React.FC = () => {
     setLoading(false);
   };
 
-  const fetchSlots = async (specialistId: string) => {
-    const { data, error } = await supabase
-      .from('availability_slots')
-      .select('*')
-      .eq('specialist_id', specialistId)
-      .gte('start_time', new Date().toISOString())
-      .order('start_time', { ascending: true });
-
-    if (!error && data) {
-      setSlots(data);
-    }
-  };
-
   const fetchPendingBookingsCount = async (specialistId: string) => {
     const { count } = await supabase
       .from('bookings')
@@ -104,73 +70,10 @@ const SpecialistDashboard: React.FC = () => {
     setPendingBookingsCount(count || 0);
   };
 
-  const handleAddSlot = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!specialist) return;
-
-    setSubmitting(true);
-
-    const startDateTime = new Date(`${slotDate}T${startTime}`);
-    const endDateTime = new Date(`${slotDate}T${endTime}`);
-
-    if (endDateTime <= startDateTime) {
-      toast({
-        title: "Invalid time range",
-        description: "End time must be after start time.",
-        variant: "destructive",
-      });
-      setSubmitting(false);
-      return;
-    }
-
-    const { error } = await supabase
-      .from('availability_slots')
-      .insert({
-        specialist_id: specialist.id,
-        start_time: startDateTime.toISOString(),
-        end_time: endDateTime.toISOString(),
-        is_booked: false,
-      });
-
-    if (error) {
-      toast({
-        title: "Failed to add slot",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Slot added",
-        description: "Your availability slot has been added.",
-      });
-      setSlotDate('');
-      setStartTime('');
-      setEndTime('');
-      fetchSlots(specialist.id);
-    }
-
-    setSubmitting(false);
-  };
-
-  const handleDeleteSlot = async (slotId: string) => {
-    const { error } = await supabase
-      .from('availability_slots')
-      .delete()
-      .eq('id', slotId);
-
-    if (!error && specialist) {
-      fetchSlots(specialist.id);
-      toast({
-        title: "Slot deleted",
-      });
-    }
-  };
-
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
   };
-
 
   if (authLoading || loading) {
     return (
@@ -183,9 +86,6 @@ const SpecialistDashboard: React.FC = () => {
   if (!specialist) {
     return null;
   }
-
-  // Get minimum date (today)
-  const today = format(new Date(), 'yyyy-MM-dd');
 
   return (
     <div className="min-h-screen bg-background">
@@ -214,46 +114,7 @@ const SpecialistDashboard: React.FC = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-primary/10">
-                  <CalendarDays className="text-primary" size={24} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{slots.length}</p>
-                  <p className="text-sm text-muted-foreground">Available Slots</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-primary/10">
-                  <Calendar className="text-primary" size={24} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{slots.filter(s => s.is_booked).length}</p>
-                  <p className="text-sm text-muted-foreground">Booked Sessions</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-secondary">
-                  <Clock className="text-muted-foreground" size={24} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{slots.filter(s => !s.is_booked).length}</p>
-                  <p className="text-sm text-muted-foreground">Open Slots</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <Card className={pendingBookingsCount > 0 ? 'ring-2 ring-primary' : ''}>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
@@ -269,138 +130,19 @@ const SpecialistDashboard: React.FC = () => {
           </Card>
         </div>
 
-        {/* Tabs */}
-        <Tabs defaultValue="requests" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="requests" className="relative">
-              Booking Requests
-              {pendingBookingsCount > 0 && (
-                <Badge className="ml-2 bg-primary text-primary-foreground">{pendingBookingsCount}</Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="availability">Manage Availability</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="requests">
-            <SpecialistBookingRequests
-              specialistId={specialist.id}
-              onBookingUpdate={() => fetchPendingBookingsCount(specialist.id)}
-            />
-          </TabsContent>
-
-          <TabsContent value="availability">
-            <div className="grid gap-6 lg:grid-cols-3">
-              {/* Add Slot Form */}
-              <Card className="lg:col-span-1">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Plus size={20} />
-                    Add Availability
-                  </CardTitle>
-                  <CardDescription>Set your available consultation times</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleAddSlot} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="date">Date</Label>
-                      <Input
-                        id="date"
-                        type="date"
-                        value={slotDate}
-                        onChange={(e) => setSlotDate(e.target.value)}
-                        min={today}
-                        required
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="start">Start Time</Label>
-                        <Input
-                          id="start"
-                          type="time"
-                          value={startTime}
-                          onChange={(e) => setStartTime(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="end">End Time</Label>
-                        <Input
-                          id="end"
-                          type="time"
-                          value={endTime}
-                          onChange={(e) => setEndTime(e.target.value)}
-                          required
-                        />
-                      </div>
-                    </div>
-                    <Button type="submit" variant="wellness" className="w-full" disabled={submitting}>
-                      {submitting ? 'Adding...' : 'Add Slot'}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-
-              {/* Slots List */}
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle>Your Availability Slots</CardTitle>
-                  <CardDescription>Upcoming consultation slots</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {slots.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-                      <p className="text-muted-foreground">No availability slots set yet</p>
-                    </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Time</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {slots.map((slot) => (
-                          <TableRow key={slot.id}>
-                            <TableCell>
-                              {format(parseISO(slot.start_time), 'MMM d, yyyy')}
-                            </TableCell>
-                            <TableCell>
-                              {format(parseISO(slot.start_time), 'h:mm a')} - {format(parseISO(slot.end_time), 'h:mm a')}
-                            </TableCell>
-                            <TableCell>
-                              {slot.is_booked ? (
-                                <Badge className="bg-primary">Booked</Badge>
-                              ) : (
-                                <Badge variant="secondary">Available</Badge>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {!slot.is_booked && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-destructive"
-                                  onClick={() => handleDeleteSlot(slot.id)}
-                                >
-                                  <Trash2 size={16} />
-                                </Button>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
+        {/* Booking Requests */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-semibold">Booking Requests</h2>
+            {pendingBookingsCount > 0 && (
+              <Badge className="bg-primary text-primary-foreground">{pendingBookingsCount}</Badge>
+            )}
+          </div>
+          <SpecialistBookingRequests
+            specialistId={specialist.id}
+            onBookingUpdate={() => fetchPendingBookingsCount(specialist.id)}
+          />
+        </div>
       </main>
     </div>
   );
