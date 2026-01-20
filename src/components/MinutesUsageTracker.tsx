@@ -11,7 +11,7 @@ import {
   DialogHeader, 
   DialogTitle 
 } from '@/components/ui/dialog';
-import { Clock, TrendingUp, Zap, AlertTriangle, XCircle, ArrowUpCircle, Check, Building2, Loader2 } from 'lucide-react';
+import { Clock, TrendingUp, Zap, AlertTriangle, XCircle, ArrowUpCircle, Check, Building2, Loader2, CreditCard } from 'lucide-react';
 import { WELLNESS_PLANS, PLANS, isTestAccountEmail } from '@/lib/plans';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,6 +32,7 @@ const MinutesUsageTracker: React.FC<MinutesUsageTrackerProps> = ({ company }) =>
   const { toast } = useToast();
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
   const planType = company.plan_type || 'starter';
@@ -109,6 +110,28 @@ const MinutesUsageTracker: React.FC<MinutesUsageTrackerProps> = ({ company }) =>
     }
   };
 
+  const handleManageSubscription = async () => {
+    setPortalLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('customer-portal');
+
+      if (error) throw error;
+
+      if (data.url) {
+        window.open(data.url, '_blank');
+      }
+    } catch (error) {
+      console.error('Portal error:', error);
+      toast({
+        title: "Unable to open portal",
+        description: "Please try again or contact support.",
+        variant: "destructive",
+      });
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
   const daysRemaining = getDaysRemaining();
   const isLowOnMinutes = usagePercentage >= 80;
   const isCriticallyLow = usagePercentage >= 95;
@@ -136,15 +159,30 @@ const MinutesUsageTracker: React.FC<MinutesUsageTrackerProps> = ({ company }) =>
                 </CardDescription>
               </div>
             </div>
-            {canUpgrade && (
+            <div className="flex items-center gap-2">
               <Button 
-                onClick={() => setUpgradeModalOpen(true)}
+                variant="outline"
+                onClick={handleManageSubscription}
+                disabled={portalLoading}
                 className="gap-2"
               >
-                <ArrowUpCircle className="h-4 w-4" />
-                Upgrade Plan
+                {portalLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CreditCard className="h-4 w-4" />
+                )}
+                Manage Billing
               </Button>
-            )}
+              {canUpgrade && (
+                <Button 
+                  onClick={() => setUpgradeModalOpen(true)}
+                  className="gap-2"
+                >
+                  <ArrowUpCircle className="h-4 w-4" />
+                  Upgrade Plan
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
