@@ -27,6 +27,8 @@ interface Specialist {
   hourly_rate: number;
   is_active: boolean;
   avatar_url: string | null;
+  user_id: string | null;
+  rate_tier: string | null;
 }
 
 const Admin: React.FC = () => {
@@ -453,7 +455,13 @@ const Admin: React.FC = () => {
                       </TableCell>
                       <TableCell>{specialist.email}</TableCell>
                       <TableCell>{specialist.specialty}</TableCell>
-                      <TableCell>${specialist.hourly_rate}/hr</TableCell>
+                      <TableCell>
+                        {specialist.user_id ? (
+                          <span className="font-medium">${specialist.hourly_rate}/hr</span>
+                        ) : (
+                          <span className="text-muted-foreground text-sm italic">Pending signup</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Switch
                           checked={specialist.is_active}
