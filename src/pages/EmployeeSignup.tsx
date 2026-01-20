@@ -131,9 +131,9 @@ const EmployeeSignup: React.FC = () => {
 
         toast({
           title: "Welcome to HollyAid!",
-          description: `You've been added to ${matchingCompany.name}.`,
+          description: `You've been added to ${matchingCompany.name}. Let's complete your profile.`,
         });
-        navigate('/dashboard');
+        navigate('/complete-profile');
       }
     } catch (error: any) {
       toast({

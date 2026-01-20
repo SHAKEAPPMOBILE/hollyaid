@@ -56,9 +56,9 @@ const PaymentSuccess: React.FC = () => {
                 variant="wellness" 
                 size="lg" 
                 className="w-full"
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/complete-profile')}
               >
-                Go to Dashboard
+                Complete Your Profile
                 <ArrowRight size={16} className="ml-2" />
               </Button>
             )}
