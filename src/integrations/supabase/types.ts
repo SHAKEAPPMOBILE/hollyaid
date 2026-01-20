@@ -277,6 +277,7 @@ export type Database = {
           full_name: string | null
           id: string
           job_title: string | null
+          phone_number: string | null
           updated_at: string
           user_id: string
         }
@@ -288,6 +289,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           job_title?: string | null
+          phone_number?: string | null
           updated_at?: string
           user_id: string
         }
@@ -299,6 +301,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           job_title?: string | null
+          phone_number?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -370,6 +373,7 @@ export type Database = {
           invitation_sent_at: string | null
           invitation_token: string | null
           is_active: boolean | null
+          phone_number: string | null
           rate_tier: Database["public"]["Enums"]["specialist_rate_tier"] | null
           specialty: string
           updated_at: string
@@ -388,6 +392,7 @@ export type Database = {
           invitation_sent_at?: string | null
           invitation_token?: string | null
           is_active?: boolean | null
+          phone_number?: string | null
           rate_tier?: Database["public"]["Enums"]["specialist_rate_tier"] | null
           specialty: string
           updated_at?: string
@@ -406,6 +411,7 @@ export type Database = {
           invitation_sent_at?: string | null
           invitation_token?: string | null
           is_active?: boolean | null
+          phone_number?: string | null
           rate_tier?: Database["public"]["Enums"]["specialist_rate_tier"] | null
           specialty?: string
           updated_at?: string
