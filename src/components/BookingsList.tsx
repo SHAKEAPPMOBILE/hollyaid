@@ -6,9 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Clock, Video, CheckCircle, XCircle, MessageCircle, AlertTriangle } from 'lucide-react';
+import { Calendar, Clock, Video, CheckCircle, XCircle, MessageCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import BookingConversation from './BookingConversation';
+import RescheduleBookingModal from './RescheduleBookingModal';
 
 interface Booking {
   id: string;
@@ -32,6 +33,7 @@ const BookingsList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
+  const [bookingToReschedule, setBookingToReschedule] = useState<Booking | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
@@ -107,6 +109,7 @@ const BookingsList: React.FC = () => {
   };
 
   const canCancel = (status: string) => status === 'pending' || status === 'approved';
+  const canReschedule = (status: string) => status === 'approved';
 
   if (loading) {
     return <div className="space-y-4">{[1, 2, 3].map((i) => <Card key={i} className="animate-pulse"><CardContent className="p-6"><div className="h-24 bg-muted rounded" /></CardContent></Card>)}</div>;
@@ -149,6 +152,16 @@ const BookingsList: React.FC = () => {
                           <Video size={16} className="mr-1" />
                           Join Meeting
                         </a>
+                      </Button>
+                    )}
+                    {canReschedule(booking.status) && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setBookingToReschedule(booking)}
+                      >
+                        <RefreshCw size={16} className="mr-1" />
+                        Reschedule
                       </Button>
                     )}
                     {canCancel(booking.status) && (
@@ -207,6 +220,16 @@ const BookingsList: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Reschedule Modal */}
+      {bookingToReschedule && (
+        <RescheduleBookingModal
+          booking={bookingToReschedule}
+          open={!!bookingToReschedule}
+          onClose={() => setBookingToReschedule(null)}
+          onSuccess={fetchBookings}
+        />
+      )}
     </>
   );
 };
