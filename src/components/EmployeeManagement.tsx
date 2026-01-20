@@ -2,12 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, Mail, Clock, CheckCircle, XCircle, Users } from 'lucide-react';
+import { UserPlus, Mail, Clock, CheckCircle, XCircle, Users, Trash2, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Company {
@@ -35,6 +35,8 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ company }) => {
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
+  const [employeeToRemove, setEmployeeToRemove] = useState<Employee | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     fetchEmployees();
@@ -116,14 +118,42 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ company }) => {
     setInviting(false);
   };
 
+  const handleRemoveEmployee = async () => {
+    if (!employeeToRemove) return;
+    
+    setRemoving(true);
+    
+    const { error } = await supabase
+      .from('company_employees')
+      .delete()
+      .eq('id', employeeToRemove.id);
+
+    if (error) {
+      toast({
+        title: "Removal failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Employee removed",
+        description: `${employeeToRemove.email} has been removed from the company.`,
+      });
+      fetchEmployees();
+    }
+    
+    setRemoving(false);
+    setEmployeeToRemove(null);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'invited':
         return <Badge variant="secondary" className="flex items-center gap-1"><Clock size={12} /> Pending</Badge>;
       case 'accepted':
-        return <Badge className="bg-primary flex items-center gap-1"><CheckCircle size={12} /> Accepted</Badge>;
-      case 'declined':
-        return <Badge variant="destructive" className="flex items-center gap-1"><XCircle size={12} /> Declined</Badge>;
+        return <Badge className="bg-primary flex items-center gap-1"><CheckCircle size={12} /> Active</Badge>;
+      case 'revoked':
+        return <Badge variant="destructive" className="flex items-center gap-1"><XCircle size={12} /> Revoked</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -235,7 +265,8 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ company }) => {
                   <TableHead>Email</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Invited</TableHead>
-                  <TableHead>Accepted</TableHead>
+                  <TableHead>Joined</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -251,6 +282,16 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ company }) => {
                         ? format(new Date(employee.accepted_at), 'MMM d, yyyy')
                         : '-'}
                     </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEmployeeToRemove(employee)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -258,6 +299,34 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ company }) => {
           )}
         </CardContent>
       </Card>
+
+      {/* Remove Confirmation Dialog */}
+      <Dialog open={!!employeeToRemove} onOpenChange={() => setEmployeeToRemove(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="text-destructive" size={20} />
+              Remove Employee
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Are you sure you want to remove <strong>{employeeToRemove?.email}</strong> from {company.name}?
+              {employeeToRemove?.status === 'accepted' && (
+                <p className="mt-2 text-destructive">
+                  This employee has already joined and will lose access to book specialists.
+                </p>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setEmployeeToRemove(null)} disabled={removing}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleRemoveEmployee} disabled={removing}>
+              {removing ? 'Removing...' : 'Yes, Remove Employee'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
