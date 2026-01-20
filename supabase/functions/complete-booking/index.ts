@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
+
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,15 +21,109 @@ const TIER_MULTIPLIERS: Record<string, number> = {
 // Default session duration in minutes (1 hour)
 const DEFAULT_SESSION_MINUTES = 60;
 
+// Threshold for low minutes warning (80%)
+const LOW_MINUTES_THRESHOLD = 0.80;
+
 interface CompleteBookingRequest {
   bookingId: string;
-  sessionMinutes?: number; // Optional: actual session duration, defaults to 60
+  sessionMinutes?: number;
+}
+
+// Function to send low minutes warning email
+async function sendLowMinutesEmail(
+  adminEmail: string,
+  companyName: string,
+  minutesUsed: number,
+  minutesIncluded: number,
+  usagePercentage: number
+): Promise<void> {
+  const minutesRemaining = minutesIncluded - minutesUsed;
+  const hoursRemaining = Math.floor(minutesRemaining / 60);
+  const minsRemaining = minutesRemaining % 60;
+  const remainingFormatted = hoursRemaining > 0 
+    ? `${hoursRemaining}h ${minsRemaining}m` 
+    : `${minsRemaining}m`;
+
+  try {
+    await resend.emails.send({
+      from: "HollyAid <onboarding@resend.dev>",
+      to: [adminEmail],
+      subject: `⚠️ Low Wellness Minutes Warning - ${companyName}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center; }
+            .content { background: #f9fafb; padding: 30px; border-radius: 0 0 12px 12px; }
+            .usage-bar { background: #e5e7eb; border-radius: 8px; height: 20px; overflow: hidden; margin: 20px 0; }
+            .usage-fill { background: linear-gradient(90deg, #f59e0b, #dc2626); height: 100%; transition: width 0.3s; }
+            .stat-box { background: white; padding: 20px; border-radius: 8px; text-align: center; margin: 10px 0; border-left: 4px solid #f59e0b; }
+            .stat-value { font-size: 28px; font-weight: bold; color: #111827; }
+            .stat-label { font-size: 14px; color: #6b7280; }
+            .cta { display: inline-block; background: #22c55e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 20px; }
+            .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0; font-size: 24px;">⚠️ Low Minutes Warning</h1>
+              <p style="margin: 10px 0 0; opacity: 0.9;">Your wellness minutes are running low</p>
+            </div>
+            <div class="content">
+              <p>Hello,</p>
+              <p>This is a notification that <strong>${companyName}</strong> has used <strong>${Math.round(usagePercentage)}%</strong> of the monthly wellness minutes allocation.</p>
+              
+              <div class="usage-bar">
+                <div class="usage-fill" style="width: ${Math.min(usagePercentage, 100)}%;"></div>
+              </div>
+              
+              <div class="stat-box">
+                <div class="stat-value">${remainingFormatted}</div>
+                <div class="stat-label">Minutes Remaining</div>
+              </div>
+              
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="stat-box">
+                  <div class="stat-value">${minutesUsed}</div>
+                  <div class="stat-label">Minutes Used</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-value">${minutesIncluded}</div>
+                  <div class="stat-label">Monthly Allowance</div>
+                </div>
+              </div>
+              
+              <p style="margin-top: 20px;">To ensure uninterrupted access to wellness services, consider upgrading your plan before your minutes run out.</p>
+              
+              <center>
+                <a href="https://hollyaid.lovable.app/dashboard" class="cta">
+                  View Dashboard →
+                </a>
+              </center>
+              
+              <div class="footer">
+                <p>This is an automated notification from HollyAid Wellness.</p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+    console.log("Low minutes warning email sent to:", adminEmail);
+  } catch (error) {
+    console.error("Failed to send low minutes email:", error);
+    // Don't throw - email failure shouldn't fail the booking completion
+  }
 }
 
 const handler = async (req: Request): Promise<Response> => {
   console.log("complete-booking function called");
 
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -39,7 +136,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("bookingId is required");
     }
 
-    // Create Supabase client with service role for admin access
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -67,7 +163,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Booking data:", JSON.stringify(booking, null, 2));
 
-    // Verify booking is in approved status
     if (booking.status !== "approved") {
       throw new Error(`Booking cannot be completed. Current status: ${booking.status}`);
     }
@@ -78,15 +173,12 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Specialist not found for this booking");
     }
 
-    // Get the tier multiplier (default to standard if not set)
     const tier = specialist.rate_tier || "standard";
     const multiplier = TIER_MULTIPLIERS[tier] || 1.0;
-    
-    // Calculate minutes to deduct
     const minutesToDeduct = Math.ceil(sessionMinutes * multiplier);
     console.log(`Tier: ${tier}, Multiplier: ${multiplier}, Session: ${sessionMinutes}min, Deducting: ${minutesToDeduct} minutes`);
 
-    // Find the employee's company
+    // Find the employee's company with admin info
     const { data: employeeCompany, error: companyError } = await supabase
       .from("company_employees")
       .select(`
@@ -95,7 +187,8 @@ const handler = async (req: Request): Promise<Response> => {
           id,
           name,
           minutes_used,
-          minutes_included
+          minutes_included,
+          admin_user_id
         )
       `)
       .eq("user_id", booking.employee_user_id)
@@ -111,6 +204,7 @@ const handler = async (req: Request): Promise<Response> => {
       name: string; 
       minutes_used: number | null; 
       minutes_included: number | null;
+      admin_user_id: string | null;
     } | null;
 
     if (!company) {
@@ -118,9 +212,16 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const currentMinutesUsed = company.minutes_used || 0;
+    const minutesIncluded = company.minutes_included || 0;
     const newMinutesUsed = currentMinutesUsed + minutesToDeduct;
 
+    // Calculate usage percentages before and after
+    const previousUsagePercentage = minutesIncluded > 0 ? (currentMinutesUsed / minutesIncluded) * 100 : 0;
+    const newUsagePercentage = minutesIncluded > 0 ? (newMinutesUsed / minutesIncluded) * 100 : 0;
+    const thresholdPercentage = LOW_MINUTES_THRESHOLD * 100;
+
     console.log(`Company: ${company.name}, Current used: ${currentMinutesUsed}, New total: ${newMinutesUsed}`);
+    console.log(`Usage: ${previousUsagePercentage.toFixed(1)}% -> ${newUsagePercentage.toFixed(1)}% (threshold: ${thresholdPercentage}%)`);
 
     // Update company minutes_used
     const { error: updateCompanyError } = await supabase
@@ -144,6 +245,34 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Failed to complete booking");
     }
 
+    // Check if usage just crossed the 80% threshold and send email notification
+    let lowMinutesEmailSent = false;
+    if (previousUsagePercentage < thresholdPercentage && newUsagePercentage >= thresholdPercentage) {
+      console.log("Usage crossed 80% threshold - sending notification email");
+      
+      if (company.admin_user_id) {
+        // Get admin email from profiles
+        const { data: adminProfile, error: profileError } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("user_id", company.admin_user_id)
+          .single();
+
+        if (!profileError && adminProfile?.email) {
+          await sendLowMinutesEmail(
+            adminProfile.email,
+            company.name,
+            newMinutesUsed,
+            minutesIncluded,
+            newUsagePercentage
+          );
+          lowMinutesEmailSent = true;
+        } else {
+          console.error("Could not find admin email:", profileError);
+        }
+      }
+    }
+
     console.log("Booking completed successfully");
 
     return new Response(
@@ -156,6 +285,7 @@ const handler = async (req: Request): Promise<Response> => {
         companyName: company.name,
         totalMinutesUsed: newMinutesUsed,
         minutesIncluded: company.minutes_included,
+        lowMinutesEmailSent,
       }),
       {
         status: 200,
