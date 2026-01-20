@@ -421,6 +421,10 @@ export type Database = {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean
       }
+      is_specialist_owner: {
+        Args: { _specialist_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "company_admin" | "employee" | "specialist"
