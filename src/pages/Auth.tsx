@@ -56,13 +56,23 @@ const Auth: React.FC = () => {
   };
 
   const checkProfileComplete = async (userId: string): Promise<boolean> => {
-    const { data: profile } = await supabase
+    const { data }: any = await supabase
       .from('profiles')
       .select('job_title')
       .eq('user_id', userId)
-      .single() as { data: { job_title: string | null } | null };
-    
-    return !!profile?.job_title;
+      .single();
+    return !!data?.job_title;
+  };
+
+  const ensureSessionReady = async () => {
+    // Immediately after sign-in, the auth token may not yet be attached to subsequent requests.
+    // We retry a couple times to avoid false "Access denied" flows.
+    for (let i = 0; i < 5; i++) {
+      const { data } = await supabase.auth.getSession();
+      if (data.session?.access_token) return true;
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    return false;
   };
 
   const handleLogin = async (e: React.FormEvent, userType: 'employee' | 'specialist' | 'company') => {
@@ -77,6 +87,18 @@ const Auth: React.FC = () => {
         description: error.message,
         variant: "destructive",
       });
+      setLoading(false);
+      return;
+    }
+
+    const sessionReady = await ensureSessionReady();
+    if (!sessionReady) {
+      toast({
+        title: "Login failed",
+        description: "Session not ready. Please try again.",
+        variant: "destructive",
+      });
+      await supabase.auth.signOut();
       setLoading(false);
       return;
     }

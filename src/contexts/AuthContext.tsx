@@ -7,7 +7,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
-  signIn: (email: string, password: string) => Promise<{ user: User | null; error: Error | null }>;
+  signIn: (email: string, password: string) => Promise<{ user: User | null; session: Session | null; error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -20,13 +20,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // IMPORTANT: keep this callback synchronous to avoid auth deadlocks.
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -57,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email,
       password,
     });
-    return { user: data?.user ?? null, error: error as Error | null };
+    return { user: data?.user ?? null, session: data?.session ?? null, error: error as Error | null };
   };
 
   const signOut = async () => {

@@ -33,14 +33,13 @@ const CompleteProfile: React.FC = () => {
   const checkProfileCompletion = async () => {
     if (!user) return;
 
-    const { data } = await supabase
-      .from('profiles')
+    const { data }: any = await supabase
+      .from('profiles' as any)
       .select('full_name, job_title')
       .eq('user_id', user.id)
       .single();
 
-    // Cast to expected shape - types will update after migration sync
-    const profile = data as unknown as { full_name: string | null; job_title: string | null } | null;
+    const profile = data as { full_name: string | null; job_title: string | null } | null;
 
     // If profile already has job_title set, redirect to appropriate dashboard
     if (profile?.job_title) {
@@ -101,7 +100,7 @@ const CompleteProfile: React.FC = () => {
     setLoading(true);
 
     const { error } = await supabase
-      .from('profiles')
+      .from('profiles' as any)
       .update({
         full_name: fullName.trim(),
         job_title: jobTitle.trim(),
