@@ -17,6 +17,7 @@ interface Booking {
   proposed_datetime: string | null;
   confirmed_datetime: string | null;
   meeting_link: string | null;
+  session_duration: number;
   created_at: string;
   employee: {
     email: string;
@@ -55,6 +56,7 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
         proposed_datetime,
         confirmed_datetime,
         meeting_link,
+        session_duration,
         created_at,
         employee_user_id
       `)
@@ -388,6 +390,7 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
         <CompleteSessionModal
           bookingId={bookingToComplete.id}
           employeeName={bookingToComplete.employee?.full_name || bookingToComplete.employee?.email || 'Employee'}
+          sessionDuration={bookingToComplete.session_duration || 60}
           open={!!bookingToComplete}
           onClose={() => setBookingToComplete(null)}
           onCompleted={handleSessionCompleted}

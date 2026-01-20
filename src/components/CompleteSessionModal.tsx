@@ -8,16 +8,16 @@ import { CheckCircle, Clock, User } from 'lucide-react';
 interface CompleteSessionModalProps {
   bookingId: string;
   employeeName: string;
+  sessionDuration: number;
   open: boolean;
   onClose: () => void;
   onCompleted: () => void;
 }
 
-const SESSION_DURATION_MINUTES = 60;
-
 const CompleteSessionModal: React.FC<CompleteSessionModalProps> = ({
   bookingId,
   employeeName,
+  sessionDuration,
   open,
   onClose,
   onCompleted,
@@ -30,7 +30,7 @@ const CompleteSessionModal: React.FC<CompleteSessionModalProps> = ({
 
     try {
       const { data, error } = await supabase.functions.invoke('complete-booking', {
-        body: { bookingId, sessionMinutes: SESSION_DURATION_MINUTES },
+        body: { bookingId, sessionMinutes: sessionDuration },
       });
 
       if (error) {
@@ -59,6 +59,8 @@ const CompleteSessionModal: React.FC<CompleteSessionModalProps> = ({
     setSubmitting(false);
   };
 
+  const durationLabel = sessionDuration === 30 ? '30 Minute' : '1 Hour';
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="max-w-md">
@@ -82,13 +84,13 @@ const CompleteSessionModal: React.FC<CompleteSessionModalProps> = ({
             </div>
           </div>
 
-          {/* Fixed Duration Info */}
+          {/* Duration Info */}
           <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg border border-primary/10">
             <Clock className="w-5 h-5 text-primary" />
             <div>
-              <p className="text-sm font-medium">1 Hour Session</p>
+              <p className="text-sm font-medium">{durationLabel} Session</p>
               <p className="text-xs text-muted-foreground">
-                Standard session duration • Wellness minutes will be deducted based on your tier
+                Wellness minutes will be deducted based on your tier
               </p>
             </div>
           </div>

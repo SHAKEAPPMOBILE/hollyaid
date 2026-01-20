@@ -100,6 +100,7 @@ export type Database = {
           meeting_link: string | null
           notes: string | null
           proposed_datetime: string | null
+          session_duration: number
           slot_id: string | null
           specialist_id: string
           status: string
@@ -114,6 +115,7 @@ export type Database = {
           meeting_link?: string | null
           notes?: string | null
           proposed_datetime?: string | null
+          session_duration?: number
           slot_id?: string | null
           specialist_id: string
           status?: string
@@ -128,6 +130,7 @@ export type Database = {
           meeting_link?: string | null
           notes?: string | null
           proposed_datetime?: string | null
+          session_duration?: number
           slot_id?: string | null
           specialist_id?: string
           status?: string
