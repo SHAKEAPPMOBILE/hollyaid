@@ -60,6 +60,8 @@ const BookingsList: React.FC = () => {
     if (!bookingToCancel) return;
     
     setCancelling(true);
+    const wasApproved = bookingToCancel.status === 'approved';
+    
     const { error } = await supabase
       .from('bookings')
       .update({ status: 'cancelled' })
@@ -68,9 +70,23 @@ const BookingsList: React.FC = () => {
     if (error) {
       toast({ title: "Cancellation failed", description: error.message, variant: "destructive" });
     } else {
+      // Send email notification to specialist if the booking was confirmed
+      if (wasApproved) {
+        try {
+          await supabase.functions.invoke('notify-booking-cancellation', {
+            body: { bookingId: bookingToCancel.id }
+          });
+        } catch (emailError) {
+          console.error('Failed to send cancellation notification:', emailError);
+          // Don't fail the cancellation if email fails
+        }
+      }
+      
       toast({ 
         title: "Booking cancelled",
-        description: "Your booking has been cancelled successfully.",
+        description: wasApproved 
+          ? "Your booking has been cancelled and the specialist has been notified."
+          : "Your booking has been cancelled successfully.",
       });
       fetchBookings();
     }
