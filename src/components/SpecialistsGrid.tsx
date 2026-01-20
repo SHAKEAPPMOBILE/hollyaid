@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar, Clock, Star } from 'lucide-react';
 import BookingRequestModal from './BookingRequestModal';
 import SpecialistProfileModal from './SpecialistProfileModal';
+import { cn } from '@/lib/utils';
 
 interface Specialist {
   id: string;
@@ -16,6 +17,8 @@ interface Specialist {
   bio: string | null;
   avatar_url: string | null;
   rate_tier: string | null;
+  avg_rating?: number;
+  review_count?: number;
 }
 
 // Minutes deducted per 1-hour session based on tier
@@ -45,13 +48,39 @@ const SpecialistsGrid: React.FC = () => {
   }, []);
 
   const fetchSpecialists = async () => {
-    // Use the specialists_public view which excludes sensitive data (email, hourly_rate, invitation_token)
+    // Use the specialists_public view which excludes sensitive data
     const { data, error } = await supabase
       .from('specialists_public')
       .select('id, full_name, specialty, bio, avatar_url, rate_tier');
 
     if (!error && data) {
-      setSpecialists(data);
+      // Fetch review stats for all specialists
+      const specialistIds = data.map(s => s.id).filter(Boolean) as string[];
+      
+      const { data: reviews } = await supabase
+        .from('specialist_reviews')
+        .select('specialist_id, rating')
+        .in('specialist_id', specialistIds);
+
+      // Calculate avg rating and count per specialist
+      const reviewStats = new Map<string, { total: number; count: number }>();
+      reviews?.forEach(r => {
+        const existing = reviewStats.get(r.specialist_id) || { total: 0, count: 0 };
+        reviewStats.set(r.specialist_id, {
+          total: existing.total + r.rating,
+          count: existing.count + 1,
+        });
+      });
+
+      const specialistsWithRatings = data.map(s => ({
+        ...s,
+        avg_rating: reviewStats.get(s.id!)?.total 
+          ? Math.round((reviewStats.get(s.id!)!.total / reviewStats.get(s.id!)!.count) * 10) / 10
+          : undefined,
+        review_count: reviewStats.get(s.id!)?.count || 0,
+      }));
+
+      setSpecialists(specialistsWithRatings as Specialist[]);
     }
     setLoading(false);
   };
@@ -141,9 +170,18 @@ const SpecialistsGrid: React.FC = () => {
                   <CardTitle className="text-lg group-hover:text-primary transition-colors">
                     {specialist.full_name}
                   </CardTitle>
-                  <Badge variant="secondary" className="mt-1">
-                    {specialist.specialty}
-                  </Badge>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="secondary">
+                      {specialist.specialty}
+                    </Badge>
+                    {specialist.avg_rating && specialist.review_count && specialist.review_count > 0 && (
+                      <div className="flex items-center gap-1 text-sm">
+                        <Star size={14} className="fill-yellow-400 text-yellow-400" />
+                        <span className="font-medium">{specialist.avg_rating}</span>
+                        <span className="text-muted-foreground">({specialist.review_count})</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardHeader>
