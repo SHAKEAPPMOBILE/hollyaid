@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar, Clock } from 'lucide-react';
 import BookingRequestModal from './BookingRequestModal';
+import SpecialistProfileModal from './SpecialistProfileModal';
 
 interface Specialist {
   id: string;
@@ -36,6 +37,8 @@ const SpecialistsGrid: React.FC = () => {
   const [specialists, setSpecialists] = useState<Specialist[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSpecialist, setSelectedSpecialist] = useState<Specialist | null>(null);
+  const [profileSpecialist, setProfileSpecialist] = useState<Specialist | null>(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
 
   useEffect(() => {
     fetchSpecialists();
@@ -68,6 +71,16 @@ const SpecialistsGrid: React.FC = () => {
       .join('')
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const handleCardClick = (specialist: Specialist) => {
+    setProfileSpecialist(specialist);
+  };
+
+  const handleBookNow = (specialist: Specialist, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedSpecialist(specialist);
+    setShowBookingModal(true);
   };
 
   if (loading) {
@@ -113,11 +126,12 @@ const SpecialistsGrid: React.FC = () => {
         {specialists.map((specialist) => (
           <Card 
             key={specialist.id} 
-            className="group hover:shadow-wellness transition-all duration-300 border-0 shadow-soft"
+            className="group hover:shadow-wellness transition-all duration-300 border-0 shadow-soft cursor-pointer"
+            onClick={() => handleCardClick(specialist)}
           >
             <CardHeader className="pb-4">
               <div className="flex items-center gap-4">
-                <Avatar className="w-16 h-16 ring-2 ring-primary/10">
+                <Avatar className="w-16 h-16 ring-2 ring-primary/10 group-hover:ring-primary/30 transition-all">
                   <AvatarImage src={specialist.avatar_url || ''} alt={specialist.full_name} />
                   <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                     {getInitials(specialist.full_name)}
@@ -145,29 +159,48 @@ const SpecialistsGrid: React.FC = () => {
                   <span className="text-muted-foreground">{getTierInfo(specialist.rate_tier).label}:</span>
                   <span className="font-semibold text-foreground">{getTierInfo(specialist.rate_tier).minutes} min/session</span>
                 </div>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button 
-                      variant="wellness" 
-                      size="sm"
-                      onClick={() => setSelectedSpecialist(specialist)}
-                    >
-                      <Calendar size={16} />
-                      Book Now
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                      <DialogTitle>Request Booking with {specialist.full_name}</DialogTitle>
-                    </DialogHeader>
-                    <BookingRequestModal specialist={specialist} onClose={() => setSelectedSpecialist(null)} />
-                  </DialogContent>
-                </Dialog>
+                <Button 
+                  variant="wellness" 
+                  size="sm"
+                  onClick={(e) => handleBookNow(specialist, e)}
+                >
+                  <Calendar size={16} />
+                  Book Now
+                </Button>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      {/* Specialist Profile Modal */}
+      <SpecialistProfileModal
+        specialist={profileSpecialist}
+        open={!!profileSpecialist}
+        onClose={() => setProfileSpecialist(null)}
+        onBookNow={(specialist) => {
+          setSelectedSpecialist(specialist);
+          setShowBookingModal(true);
+        }}
+      />
+
+      {/* Booking Request Modal */}
+      <Dialog open={showBookingModal} onOpenChange={setShowBookingModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Request Booking with {selectedSpecialist?.full_name}</DialogTitle>
+          </DialogHeader>
+          {selectedSpecialist && (
+            <BookingRequestModal 
+              specialist={selectedSpecialist} 
+              onClose={() => {
+                setShowBookingModal(false);
+                setSelectedSpecialist(null);
+              }} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
