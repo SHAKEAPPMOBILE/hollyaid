@@ -15,7 +15,23 @@ interface Specialist {
   full_name: string;
   specialty: string;
   hourly_rate: number;
+  rate_tier?: string | null;
 }
+
+// Minutes deducted per 1-hour session based on tier
+const TIER_MINUTES: Record<string, number> = {
+  standard: 60,
+  advanced: 96,
+  expert: 144,
+  master: 192,
+};
+
+const TIER_LABELS: Record<string, string> = {
+  standard: 'Standard',
+  advanced: 'Advanced',
+  expert: 'Expert',
+  master: 'Master',
+};
 
 interface BookingRequestModalProps {
   specialist: Specialist;
@@ -153,12 +169,19 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ specialist, o
           <p className="text-xs text-muted-foreground text-right">{notes.length}/500</p>
         </div>
 
-        {/* Price summary */}
+        {/* Minutes deduction info */}
         <Card className="bg-secondary/30">
           <CardContent className="p-4">
             <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Session rate</span>
-              <span className="font-semibold text-lg">${specialist.hourly_rate}/hour</span>
+              <span className="text-muted-foreground">Minutes per session</span>
+              <div className="text-right">
+                <span className="font-semibold text-lg">
+                  {TIER_MINUTES[specialist.rate_tier || 'standard']} min
+                </span>
+                <span className="text-sm text-muted-foreground ml-2">
+                  ({TIER_LABELS[specialist.rate_tier || 'standard']} tier)
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>
