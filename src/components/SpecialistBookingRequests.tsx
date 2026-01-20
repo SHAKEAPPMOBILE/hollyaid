@@ -218,7 +218,11 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
     <>
       <div className="space-y-4">
         {bookings.map((booking) => (
-          <Card key={booking.id} className="shadow-soft hover:shadow-wellness transition-shadow">
+          <Card 
+            key={booking.id} 
+            className="shadow-soft hover:shadow-wellness transition-all cursor-pointer hover:border-primary/50"
+            onClick={() => setSelectedBooking(booking)}
+          >
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex-1">
@@ -244,65 +248,15 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
                   )}
                   
                   {booking.notes && (
-                    <p className="text-sm text-muted-foreground italic">
+                    <p className="text-sm text-muted-foreground italic line-clamp-1">
                       "{booking.notes}"
                     </p>
                   )}
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedBooking(booking)}
-                  >
-                    <MessageCircle size={16} className="mr-1" />
-                    Messages
-                  </Button>
-                  
-                  {booking.status === 'pending' && (
-                    <>
-                      <Button
-                        variant="wellness"
-                        size="sm"
-                        onClick={() => handleAccept(booking)}
-                        disabled={processing === booking.id}
-                      >
-                        <CheckCircle size={16} className="mr-1" />
-                        Accept
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDecline(booking.id)}
-                        disabled={processing === booking.id}
-                      >
-                        <XCircle size={16} className="mr-1" />
-                        Decline
-                      </Button>
-                    </>
-                  )}
-                  
-                  {booking.status === 'approved' && (
-                    <>
-                      {booking.meeting_link && (
-                        <Button variant="outline" size="sm" asChild>
-                          <a href={booking.meeting_link} target="_blank" rel="noopener noreferrer">
-                            Join Meeting
-                          </a>
-                        </Button>
-                      )}
-                      <Button
-                        variant="wellness"
-                        size="sm"
-                        onClick={() => handleMarkCompleted(booking.id)}
-                        disabled={processing === booking.id}
-                      >
-                        <CheckCircle size={16} className="mr-1" />
-                        Mark Completed
-                      </Button>
-                    </>
-                  )}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <MessageCircle size={16} />
+                  <span>Click to view details</span>
                 </div>
               </div>
             </CardContent>
@@ -310,20 +264,108 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
         ))}
       </div>
 
-      {/* Conversation Dialog */}
+      {/* Booking Detail Modal */}
       <Dialog open={!!selectedBooking} onOpenChange={() => setSelectedBooking(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              Conversation with {selectedBooking?.employee?.full_name || selectedBooking?.employee?.email}
+            <DialogTitle className="flex items-center gap-3">
+              <User size={20} />
+              {selectedBooking?.employee?.full_name || selectedBooking?.employee?.email}
             </DialogTitle>
           </DialogHeader>
+          
           {selectedBooking && (
-            <BookingConversation
-              bookingId={selectedBooking.id}
-              userType="specialist"
-              maxMessages={10}
-            />
+            <div className="space-y-6">
+              {/* Status & Date Info */}
+              <div className="flex items-center justify-between">
+                {getStatusBadge(selectedBooking.status)}
+                {selectedBooking.proposed_datetime && (
+                  <div className="text-sm text-muted-foreground">
+                    <span className="flex items-center gap-2">
+                      <Calendar size={14} />
+                      {format(new Date(selectedBooking.proposed_datetime), 'EEEE, MMM d, yyyy')}
+                      <Clock size={14} className="ml-2" />
+                      {format(new Date(selectedBooking.proposed_datetime), 'h:mm a')}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Notes */}
+              {selectedBooking.notes && (
+                <Card className="bg-muted/50">
+                  <CardContent className="p-4">
+                    <p className="text-sm font-medium mb-1">Employee's Note:</p>
+                    <p className="text-sm text-muted-foreground italic">"{selectedBooking.notes}"</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-3">
+                {selectedBooking.status === 'pending' && (
+                  <>
+                    <Button
+                      variant="wellness"
+                      onClick={() => {
+                        handleAccept(selectedBooking);
+                        setSelectedBooking(null);
+                      }}
+                      disabled={processing === selectedBooking.id}
+                      className="flex-1"
+                    >
+                      <CheckCircle size={16} className="mr-2" />
+                      Accept Booking
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        handleDecline(selectedBooking.id);
+                        setSelectedBooking(null);
+                      }}
+                      disabled={processing === selectedBooking.id}
+                      className="flex-1"
+                    >
+                      <XCircle size={16} className="mr-2" />
+                      Decline
+                    </Button>
+                  </>
+                )}
+                
+                {selectedBooking.status === 'approved' && (
+                  <>
+                    {selectedBooking.meeting_link && (
+                      <Button variant="outline" className="flex-1" asChild>
+                        <a href={selectedBooking.meeting_link} target="_blank" rel="noopener noreferrer">
+                          Join Meeting
+                        </a>
+                      </Button>
+                    )}
+                    <Button
+                      variant="wellness"
+                      onClick={() => {
+                        handleMarkCompleted(selectedBooking.id);
+                        setSelectedBooking(null);
+                      }}
+                      disabled={processing === selectedBooking.id}
+                      className="flex-1"
+                    >
+                      <CheckCircle size={16} className="mr-2" />
+                      Mark Completed
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              {/* Conversation */}
+              <div className="border-t pt-4">
+                <BookingConversation
+                  bookingId={selectedBooking.id}
+                  userType="specialist"
+                  maxMessages={10}
+                />
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>
