@@ -43,7 +43,8 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
   }, [specialistId]);
 
   const fetchBookings = async () => {
-    const { data, error } = await supabase
+    // Fetch bookings first
+    const { data: bookingsData, error: bookingsError } = await supabase
       .from('bookings')
       .select(`
         id,
@@ -53,14 +54,39 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
         confirmed_datetime,
         meeting_link,
         created_at,
-        employee:profiles!bookings_employee_user_id_fkey(email, full_name)
+        employee_user_id
       `)
       .eq('specialist_id', specialistId)
       .order('created_at', { ascending: false });
 
-    if (!error && data) {
-      setBookings(data as unknown as Booking[]);
+    if (bookingsError) {
+      console.error('Error fetching bookings:', bookingsError);
+      setLoading(false);
+      return;
     }
+
+    if (!bookingsData || bookingsData.length === 0) {
+      setBookings([]);
+      setLoading(false);
+      return;
+    }
+
+    // Fetch employee profiles
+    const employeeIds = bookingsData.map(b => b.employee_user_id);
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('user_id, email, full_name')
+      .in('user_id', employeeIds);
+
+    const profilesMap = new Map(profilesData?.map(p => [p.user_id, p]) || []);
+
+    // Merge bookings with employee data
+    const enrichedBookings = bookingsData.map(booking => ({
+      ...booking,
+      employee: profilesMap.get(booking.employee_user_id) || null,
+    }));
+
+    setBookings(enrichedBookings as unknown as Booking[]);
     setLoading(false);
   };
 
