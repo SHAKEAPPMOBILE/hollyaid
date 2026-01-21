@@ -200,6 +200,80 @@ const Auth: React.FC = () => {
           return;
         }
 
+        // Auto-link employee to company based on email domain if not already linked
+        const emailDomain = getEmailDomain(email);
+        if (emailDomain) {
+          // Check if already linked to a company
+          const { data: existingLink } = await supabase
+            .from('company_employees')
+            .select('id')
+            .eq('user_id', loggedInUser.id)
+            .maybeSingle();
+
+          if (!existingLink) {
+            // Find matching company by email domain
+            const { data: matchingCompany } = await supabase
+              .from('companies')
+              .select('id, name')
+              .eq('email_domain', emailDomain)
+              .eq('subscription_status', 'active')
+              .maybeSingle();
+
+            if (matchingCompany) {
+              // Check if there's an existing invitation by email
+              const { data: existingInvite } = await supabase
+                .from('company_employees')
+                .select('id')
+                .eq('company_id', matchingCompany.id)
+                .eq('email', email.toLowerCase())
+                .maybeSingle();
+
+              if (existingInvite) {
+                // Update existing invitation
+                await supabase
+                  .from('company_employees')
+                  .update({
+                    user_id: loggedInUser.id,
+                    status: 'accepted',
+                    accepted_at: new Date().toISOString(),
+                  })
+                  .eq('id', existingInvite.id);
+              } else {
+                // Auto-join company
+                await supabase
+                  .from('company_employees')
+                  .insert({
+                    company_id: matchingCompany.id,
+                    email: email.toLowerCase(),
+                    user_id: loggedInUser.id,
+                    status: 'accepted',
+                    accepted_at: new Date().toISOString(),
+                    auto_joined: true,
+                  });
+              }
+
+              // Add employee role if not exists
+              const { data: existingRole } = await supabase
+                .from('user_roles')
+                .select('id')
+                .eq('user_id', loggedInUser.id)
+                .eq('role', 'employee')
+                .maybeSingle();
+
+              if (!existingRole) {
+                await supabase
+                  .from('user_roles')
+                  .insert({
+                    user_id: loggedInUser.id,
+                    role: 'employee',
+                  });
+              }
+
+              console.log('Auto-linked employee to company:', matchingCompany.name);
+            }
+          }
+        }
+
         // Check if profile is complete, redirect accordingly
         const profileComplete = await checkProfileComplete(loggedInUser.id);
         toast({
