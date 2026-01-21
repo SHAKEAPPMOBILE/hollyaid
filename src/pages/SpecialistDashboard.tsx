@@ -133,9 +133,6 @@ const SpecialistDashboard: React.FC = () => {
             <Logo size="sm" />
           </div>
           <div className="absolute right-4 flex items-center gap-4">
-            <span className="text-sm text-muted-foreground hidden sm:inline">
-              {specialist.email}
-            </span>
             <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} data-tour="profile-button">
               <User size={16} />
               My Profile
