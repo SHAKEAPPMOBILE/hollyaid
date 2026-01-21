@@ -155,7 +155,8 @@ const SpecialistDashboard: React.FC = () => {
         </div>
 
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Welcome, {specialist.full_name}</h1>
+          <p className="text-lg text-muted-foreground mb-1">Hello, {specialist.full_name.split(' ')[0]}</p>
+          <h1 className="text-3xl font-bold text-foreground">Your Wellness Portal</h1>
           <p className="text-muted-foreground mt-1">{specialist.specialty} • ${specialist.hourly_rate}/hour</p>
         </div>
 

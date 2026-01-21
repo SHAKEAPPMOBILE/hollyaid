@@ -97,6 +97,7 @@ const Dashboard: React.FC = () => {
   const [isCompanyAdmin, setIsCompanyAdmin] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -113,6 +114,19 @@ const Dashboard: React.FC = () => {
     if (!user) return;
 
     try {
+      // Fetch user profile for name
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profileData?.full_name) {
+        // Get first name only
+        const firstName = profileData.full_name.split(' ')[0];
+        setUserName(firstName);
+      }
+
       // Check if user is admin
       const { data: adminRole } = await supabase
         .from('user_roles')
@@ -218,6 +232,9 @@ const Dashboard: React.FC = () => {
         </div>
 
         <div className="mb-8">
+          {userName && (
+            <p className="text-lg text-muted-foreground mb-1">Hello, {userName}</p>
+          )}
           <h1 className="text-3xl font-bold text-foreground">
             {company ? `${company.name} Dashboard` : 'Your Wellness Portal'}
           </h1>
