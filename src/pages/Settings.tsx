@@ -8,18 +8,48 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Phone, Bell, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Phone, Bell, Save, Loader2, User, Briefcase, Building2 } from 'lucide-react';
 
 type NotificationPreference = 'email' | 'whatsapp' | 'both';
+
+interface ProfileData {
+  full_name: string;
+  email: string;
+  phone_number: string;
+  job_title: string;
+  department: string;
+  notification_preference: NotificationPreference;
+}
+
+interface SpecialistData {
+  full_name: string;
+  email: string;
+  phone_number: string;
+  specialty: string;
+  bio: string;
+}
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
+  // Profile fields
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
+  const [department, setDepartment] = useState('');
   const [notificationPreference, setNotificationPreference] = useState<NotificationPreference>('both');
+
+  // Specialist-specific fields
+  const [isSpecialist, setIsSpecialist] = useState(false);
+  const [specialistId, setSpecialistId] = useState<string | null>(null);
+  const [specialty, setSpecialty] = useState('');
+  const [bio, setBio] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -30,28 +60,50 @@ const Settings: React.FC = () => {
     }
 
     if (user) {
-      fetchProfile();
+      fetchUserData();
     }
   }, [user, authLoading, navigate]);
 
-  const fetchProfile = async () => {
+  const fetchUserData = async () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      // Fetch profile data
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('phone_number, notification_preference')
+        .select('full_name, email, phone_number, job_title, department, notification_preference')
         .eq('user_id', user.id)
         .single();
 
-      if (error) throw error;
+      if (profileError) throw profileError;
 
-      if (data) {
-        setPhoneNumber(data.phone_number || '');
-        setNotificationPreference((data.notification_preference as NotificationPreference) || 'both');
+      if (profileData) {
+        setFullName(profileData.full_name || '');
+        setEmail(profileData.email || '');
+        setPhoneNumber(profileData.phone_number || '');
+        setJobTitle(profileData.job_title || '');
+        setDepartment(profileData.department || '');
+        setNotificationPreference((profileData.notification_preference as NotificationPreference) || 'both');
+      }
+
+      // Check if user is a specialist
+      const { data: specialistData } = await supabase
+        .from('specialists')
+        .select('id, full_name, email, phone_number, specialty, bio')
+        .eq('user_id', user.id)
+        .single();
+
+      if (specialistData) {
+        setIsSpecialist(true);
+        setSpecialistId(specialistData.id);
+        // Prefer specialist data for these fields if available
+        setFullName(specialistData.full_name || profileData?.full_name || '');
+        setPhoneNumber(specialistData.phone_number || profileData?.phone_number || '');
+        setSpecialty(specialistData.specialty || '');
+        setBio(specialistData.bio || '');
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('Error fetching user data:', error);
     } finally {
       setLoading(false);
     }
@@ -59,6 +111,16 @@ const Settings: React.FC = () => {
 
   const handleSave = async () => {
     if (!user) return;
+
+    // Validate required fields
+    if (!fullName.trim()) {
+      toast({
+        title: "Name required",
+        description: "Please enter your full name.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     // Validate phone number if WhatsApp is selected
     if ((notificationPreference === 'whatsapp' || notificationPreference === 'both') && !phoneNumber.trim()) {
@@ -73,20 +135,40 @@ const Settings: React.FC = () => {
     setSaving(true);
 
     try {
-      const { error } = await supabase
+      // Update profile
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({
+          full_name: fullName.trim(),
           phone_number: phoneNumber.trim() || null,
+          job_title: jobTitle.trim() || null,
+          department: department.trim() || null,
           notification_preference: notificationPreference,
           updated_at: new Date().toISOString(),
         })
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      // Update specialist data if applicable
+      if (isSpecialist && specialistId) {
+        const { error: specialistError } = await supabase
+          .from('specialists')
+          .update({
+            full_name: fullName.trim(),
+            phone_number: phoneNumber.trim() || null,
+            specialty: specialty.trim(),
+            bio: bio.trim() || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', specialistId);
+
+        if (specialistError) throw specialistError;
+      }
 
       toast({
         title: "Settings saved",
-        description: "Your notification preferences have been updated.",
+        description: "Your profile has been updated successfully.",
       });
     } catch (error) {
       console.error('Error saving settings:', error);
@@ -125,11 +207,128 @@ const Settings: React.FC = () => {
       <main className="container py-8 max-w-2xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">Settings</h1>
-          <p className="text-muted-foreground mt-1">Manage your account and notification preferences</p>
+          <p className="text-muted-foreground mt-1">Manage your profile and notification preferences</p>
         </div>
 
         <div className="space-y-6">
-          {/* Phone Number Card */}
+          {/* Personal Information Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User size={20} />
+                Personal Information
+              </CardTitle>
+              <CardDescription>
+                Your basic profile information
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name *</Label>
+                  <Input
+                    id="fullName"
+                    type="text"
+                    placeholder="John Doe"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    disabled
+                    className="bg-muted"
+                  />
+                  <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Work Information Card (for employees/admins) */}
+          {!isSpecialist && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Briefcase size={20} />
+                  Work Information
+                </CardTitle>
+                <CardDescription>
+                  Your role and department details
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="jobTitle">Job Title</Label>
+                    <Input
+                      id="jobTitle"
+                      type="text"
+                      placeholder="Software Engineer"
+                      value={jobTitle}
+                      onChange={(e) => setJobTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="department">Department</Label>
+                    <Input
+                      id="department"
+                      type="text"
+                      placeholder="Engineering"
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Specialist Information Card */}
+          {isSpecialist && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 size={20} />
+                  Professional Profile
+                </CardTitle>
+                <CardDescription>
+                  Your specialist profile visible to employees
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="specialty">Specialty *</Label>
+                  <Input
+                    id="specialty"
+                    type="text"
+                    placeholder="e.g., Counselling, Life Coaching"
+                    value={specialty}
+                    onChange={(e) => setSpecialty(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio</Label>
+                  <Textarea
+                    id="bio"
+                    placeholder="Tell employees about your experience and approach..."
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    rows={4}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This will be displayed on your public profile
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Contact Information Card */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
