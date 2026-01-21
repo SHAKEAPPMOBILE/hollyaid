@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import RescheduleBookingModal from './RescheduleBookingModal';
 import LeaveReviewModal from './LeaveReviewModal';
 import PostSessionReviewPrompt from './PostSessionReviewPrompt';
 import VideoCallModal from './VideoCallModal';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 
 interface Booking {
   id: string;
@@ -46,6 +47,16 @@ const BookingsList: React.FC = () => {
   const [completedSessionPrompt, setCompletedSessionPrompt] = useState<Booking | null>(null);
   const [videoCallBooking, setVideoCallBooking] = useState<Booking | null>(null);
   const previousBookingStatusRef = useRef<Map<string, string>>(new Map());
+
+  // Track unread messages
+  const bookingIds = useMemo(() => bookings.map(b => b.id), [bookings]);
+  const { unreadCounts, markAsRead } = useUnreadMessages(bookingIds);
+
+  // Mark as read when opening conversation
+  const handleOpenConversation = (booking: Booking) => {
+    setSelectedBooking(booking);
+    markAsRead(booking.id);
+  };
 
   useEffect(() => {
     if (user) {
@@ -220,9 +231,14 @@ const BookingsList: React.FC = () => {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" onClick={() => setSelectedBooking(booking)}>
+                    <Button variant="outline" size="sm" onClick={() => handleOpenConversation(booking)} className="relative">
                       <MessageCircle size={16} className="mr-1" />
                       Messages
+                      {(unreadCounts[booking.id] || 0) > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                          {unreadCounts[booking.id]}
+                        </span>
+                      )}
                     </Button>
                     {booking.status === 'approved' && booking.meeting_link && (
                       <Button 

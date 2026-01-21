@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import BookingConversation from './BookingConversation';
 import CompleteSessionModal from './CompleteSessionModal';
 import VideoCallModal from './VideoCallModal';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 
 interface Booking {
   id: string;
@@ -44,6 +45,16 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
   const [processing, setProcessing] = useState<string | null>(null);
   const [bookingToComplete, setBookingToComplete] = useState<Booking | null>(null);
   const [videoCallBooking, setVideoCallBooking] = useState<Booking | null>(null);
+
+  // Track unread messages
+  const bookingIds = useMemo(() => bookings.map(b => b.id), [bookings]);
+  const { unreadCounts, markAsRead } = useUnreadMessages(bookingIds);
+
+  // Mark as read when opening booking detail
+  const handleOpenBooking = (booking: Booking) => {
+    setSelectedBooking(booking);
+    markAsRead(booking.id);
+  };
 
   useEffect(() => {
     fetchBookings();
@@ -247,7 +258,7 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
           <Card 
             key={booking.id} 
             className="shadow-soft hover:shadow-wellness transition-all cursor-pointer hover:border-primary/50"
-            onClick={() => setSelectedBooking(booking)}
+            onClick={() => handleOpenBooking(booking)}
           >
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -290,7 +301,14 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <MessageCircle size={16} />
+                  <div className="relative">
+                    <MessageCircle size={16} />
+                    {(unreadCounts[booking.id] || 0) > 0 && (
+                      <span className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                        {unreadCounts[booking.id]}
+                      </span>
+                    )}
+                  </div>
                   <span>Click to view details</span>
                 </div>
               </div>
