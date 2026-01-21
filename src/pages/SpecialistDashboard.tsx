@@ -128,20 +128,16 @@ const SpecialistDashboard: React.FC = () => {
 
       {/* Header */}
       <header className="sticky top-0 z-40 w-full border-b bg-card/80 backdrop-blur-md">
-        <div className="container flex h-16 items-center relative">
-          <div className="flex-1 flex justify-center">
-            <Logo size="sm" />
-          </div>
-          <div className="absolute right-4 flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} data-tour="profile-button">
-              <User size={16} />
-              My Profile
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleSignOut}>
-              <LogOut size={16} />
-              Sign Out
-            </Button>
-          </div>
+        <div className="container flex h-16 items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} data-tour="profile-button">
+            <User size={16} />
+            <span className="hidden sm:inline">My Profile</span>
+          </Button>
+          <Logo size="sm" />
+          <Button variant="ghost" size="sm" onClick={handleSignOut}>
+            <LogOut size={16} />
+            <span className="hidden sm:inline">Sign Out</span>
+          </Button>
         </div>
       </header>
 
