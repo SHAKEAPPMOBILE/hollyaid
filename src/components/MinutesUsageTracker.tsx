@@ -111,6 +111,14 @@ const MinutesUsageTracker: React.FC<MinutesUsageTrackerProps> = ({ company }) =>
   };
 
   const handleManageSubscription = async () => {
+    if (user?.email && isTestAccountEmail(user.email)) {
+      toast({
+        title: "Billing portal unavailable",
+        description: "Test accounts don't have a Stripe billing portal. Use the plan selector to change plans.",
+      });
+      return;
+    }
+
     setPortalLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('customer-portal');
@@ -135,7 +143,8 @@ const MinutesUsageTracker: React.FC<MinutesUsageTrackerProps> = ({ company }) =>
   const daysRemaining = getDaysRemaining();
   const isLowOnMinutes = usagePercentage >= 80;
   const isCriticallyLow = usagePercentage >= 95;
-  const canUpgrade = availableUpgrades.length > 0;
+  // We keep the "Upgrade Plan" wording, but allow selecting any other plan (including downgrades).
+  const canUpgrade = PLANS.length > 1;
 
   return (
     <div className="space-y-6">
@@ -366,6 +375,7 @@ const MinutesUsageTracker: React.FC<MinutesUsageTrackerProps> = ({ company }) =>
                 const isCurrentPlan = plan.id === planType;
                 const isDowngrade = index < currentPlanIndex;
                 const isUpgrade = index > currentPlanIndex;
+                const isChange = !isCurrentPlan;
                 
                 return (
                   <Card 
@@ -373,10 +383,9 @@ const MinutesUsageTracker: React.FC<MinutesUsageTrackerProps> = ({ company }) =>
                     className={cn(
                       "relative transition-all",
                       isCurrentPlan && "border-primary border-2 bg-primary/5",
-                      isUpgrade && "cursor-pointer hover:border-primary/50 hover:shadow-md",
-                      isDowngrade && "opacity-50"
+                      isChange && "cursor-pointer hover:border-primary/50 hover:shadow-md"
                     )}
-                    onClick={() => isUpgrade && !upgradeLoading && handleUpgradePlan(plan.id)}
+                    onClick={() => isChange && !upgradeLoading && handleUpgradePlan(plan.id)}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
@@ -410,11 +419,17 @@ const MinutesUsageTracker: React.FC<MinutesUsageTrackerProps> = ({ company }) =>
                         </div>
                       </div>
                       
-                      {isUpgrade && (
+                      {isChange && (
                         <div className="mt-3 pt-3 border-t flex items-center justify-between">
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Check className="h-4 w-4 text-emerald-500" />
-                            <span>+{(plan.minutes - currentPlan.minutes).toLocaleString()} more minutes</span>
+                            <span>
+                              {(() => {
+                                const delta = plan.minutes - currentPlan.minutes;
+                                const abs = Math.abs(delta).toLocaleString();
+                                return delta >= 0 ? `+${abs} more minutes` : `${abs} fewer minutes`;
+                              })()}
+                            </span>
                           </div>
                           <Button 
                             size="sm" 
