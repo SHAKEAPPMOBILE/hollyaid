@@ -99,25 +99,9 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
   };
 
   const generateMeetingLink = () => {
+    // Generate a unique room name for JaaS - tokens will be generated when joining
     const roomId = `hollyaid-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    // Configure Jitsi to hide branding, minimize UI clutter, and enable parent communication
-    const config = new URLSearchParams({
-      'config.prejoinPageEnabled': 'false',
-      'config.disableDeepLinking': 'true',
-      'config.hideConferenceSubject': 'true',
-      'config.hideConferenceTimer': 'false',
-      'config.hiddenPremeetingButtons': '["invite","select-background"]',
-      'config.enableClosePage': 'false',
-      'interfaceConfig.SHOW_JITSI_WATERMARK': 'false',
-      'interfaceConfig.SHOW_WATERMARK_FOR_GUESTS': 'false',
-      'interfaceConfig.SHOW_BRAND_WATERMARK': 'false',
-      'interfaceConfig.SHOW_POWERED_BY': 'false',
-      'interfaceConfig.SHOW_PROMOTIONAL_CLOSE_PAGE': 'false',
-      'interfaceConfig.HIDE_INVITE_MORE_HEADER': 'true',
-      'interfaceConfig.DISABLE_JOIN_LEAVE_NOTIFICATIONS': 'true',
-    });
-    // Use 8x8.vc which has better iframe/postMessage support than meet.jit.si
-    return `https://8x8.vc/hollyaid/${roomId}#${config.toString()}`;
+    return roomId;
   };
 
   const handleAccept = async (booking: Booking) => {

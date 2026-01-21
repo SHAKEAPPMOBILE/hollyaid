@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.invite-specialist]
 verify_jwt = false
+
+[functions.generate-jaas-token]
+verify_jwt = false
