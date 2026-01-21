@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, Clock, Star, Filter, X } from 'lucide-react';
+import { Calendar, Clock, Star, Filter, X, MessageCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import BookingRequestModal from './BookingRequestModal';
 import SpecialistProfileModal from './SpecialistProfileModal';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Specialist {
   id: string;
@@ -20,6 +21,12 @@ interface Specialist {
   rate_tier: string | null;
   avg_rating?: number;
   review_count?: number;
+}
+
+interface ActiveBooking {
+  specialist_id: string;
+  proposed_datetime: string | null;
+  confirmed_datetime: string | null;
 }
 
 // Minutes deducted per 1-hour session based on tier
@@ -45,7 +52,9 @@ const RATING_OPTIONS = [
 ];
 
 const SpecialistsGrid: React.FC = () => {
+  const { user } = useAuth();
   const [specialists, setSpecialists] = useState<Specialist[]>([]);
+  const [activeBookings, setActiveBookings] = useState<ActiveBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSpecialist, setSelectedSpecialist] = useState<Specialist | null>(null);
   const [profileSpecialist, setProfileSpecialist] = useState<Specialist | null>(null);
@@ -55,7 +64,35 @@ const SpecialistsGrid: React.FC = () => {
 
   useEffect(() => {
     fetchSpecialists();
-  }, []);
+    if (user) {
+      fetchActiveBookings();
+    }
+  }, [user]);
+
+  // Check if specialist has an active conversation (booking with future datetime)
+  const hasActiveConversation = (specialistId: string): boolean => {
+    const now = new Date();
+    return activeBookings.some(booking => {
+      if (booking.specialist_id !== specialistId) return false;
+      const bookingTime = booking.confirmed_datetime || booking.proposed_datetime;
+      if (!bookingTime) return false;
+      return new Date(bookingTime) > now;
+    });
+  };
+
+  const fetchActiveBookings = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('bookings')
+      .select('specialist_id, proposed_datetime, confirmed_datetime')
+      .eq('employee_user_id', user.id)
+      .in('status', ['pending', 'approved']);
+    
+    if (data) {
+      setActiveBookings(data);
+    }
+  };
 
   // Get unique specialties for filter dropdown
   const specialties = useMemo(() => {
@@ -230,63 +267,91 @@ const SpecialistsGrid: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredSpecialists.map((specialist) => (
-          <Card 
-            key={specialist.id} 
-            className="group hover:shadow-wellness transition-all duration-300 border-0 shadow-soft cursor-pointer"
-            onClick={() => handleCardClick(specialist)}
-          >
-            <CardHeader className="pb-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="w-16 h-16 ring-2 ring-primary/10 group-hover:ring-primary/30 transition-all">
-                  <AvatarImage src={specialist.avatar_url || ''} alt={specialist.full_name} />
-                  <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                    {getInitials(specialist.full_name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <CardTitle className="text-lg group-hover:text-primary transition-colors">
-                    {specialist.full_name}
-                  </CardTitle>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="secondary">
-                      {specialist.specialty}
-                    </Badge>
-                    {specialist.avg_rating && specialist.review_count && specialist.review_count > 0 && (
-                      <div className="flex items-center gap-1 text-sm">
-                        <Star size={14} className="fill-yellow-400 text-yellow-400" />
-                        <span className="font-medium">{specialist.avg_rating}</span>
-                        <span className="text-muted-foreground">({specialist.review_count})</span>
+        {filteredSpecialists.map((specialist) => {
+          const isActive = hasActiveConversation(specialist.id);
+          
+          return (
+            <Card 
+              key={specialist.id} 
+              className={cn(
+                "group transition-all duration-300 border-0 cursor-pointer",
+                isActive 
+                  ? "bg-emerald-600 text-white shadow-lg hover:bg-emerald-700" 
+                  : "hover:shadow-wellness shadow-soft"
+              )}
+              onClick={() => handleCardClick(specialist)}
+            >
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <Avatar className={cn(
+                      "w-16 h-16 ring-2 transition-all",
+                      isActive 
+                        ? "ring-white/30 group-hover:ring-white/50" 
+                        : "ring-primary/10 group-hover:ring-primary/30"
+                    )}>
+                      <AvatarImage src={specialist.avatar_url || ''} alt={specialist.full_name} />
+                      <AvatarFallback className={cn(
+                        "font-semibold",
+                        isActive ? "bg-white/20 text-white" : "bg-primary/10 text-primary"
+                      )}>
+                        {getInitials(specialist.full_name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    {isActive && (
+                      <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-md">
+                        <MessageCircle size={14} className="text-emerald-600 fill-emerald-600" />
                       </div>
                     )}
                   </div>
+                  <div>
+                    <CardTitle className={cn(
+                      "text-lg transition-colors",
+                      isActive ? "text-white" : "group-hover:text-primary"
+                    )}>
+                      {specialist.full_name}
+                    </CardTitle>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant={isActive ? "outline" : "secondary"} className={isActive ? "border-white/50 text-white" : ""}>
+                        {specialist.specialty}
+                      </Badge>
+                      {specialist.avg_rating && specialist.review_count && specialist.review_count > 0 && (
+                        <div className="flex items-center gap-1 text-sm">
+                          <Star size={14} className="fill-yellow-400 text-yellow-400" />
+                          <span className={cn("font-medium", isActive && "text-white")}>{specialist.avg_rating}</span>
+                          <span className={isActive ? "text-white/70" : "text-muted-foreground"}>({specialist.review_count})</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {specialist.bio && (
-                <CardDescription className="line-clamp-3">
-                  {specialist.bio}
-                </CardDescription>
-              )}
-              <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center gap-1 text-sm">
-                  <Clock size={14} className="text-muted-foreground" />
-                  <span className="text-muted-foreground">{getTierInfo(specialist.rate_tier).label}:</span>
-                  <span className="font-semibold text-foreground">{getTierInfo(specialist.rate_tier).minutes} min/session</span>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {specialist.bio && (
+                  <CardDescription className={cn("line-clamp-3", isActive && "text-white/80")}>
+                    {specialist.bio}
+                  </CardDescription>
+                )}
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex items-center gap-1 text-sm">
+                    <Clock size={14} className={isActive ? "text-white/70" : "text-muted-foreground"} />
+                    <span className={isActive ? "text-white/70" : "text-muted-foreground"}>{getTierInfo(specialist.rate_tier).label}:</span>
+                    <span className={cn("font-semibold", isActive ? "text-white" : "text-foreground")}>{getTierInfo(specialist.rate_tier).minutes} min/session</span>
+                  </div>
+                  <Button 
+                    variant={isActive ? "secondary" : "wellness"} 
+                    size="sm"
+                    className={isActive ? "bg-white text-emerald-600 hover:bg-white/90" : ""}
+                    onClick={(e) => handleBookNow(specialist, e)}
+                  >
+                    {isActive ? <MessageCircle size={16} /> : <Calendar size={16} />}
+                    {isActive ? "Message" : "Book Now"}
+                  </Button>
                 </div>
-                <Button 
-                  variant="wellness" 
-                  size="sm"
-                  onClick={(e) => handleBookNow(specialist, e)}
-                >
-                  <Calendar size={16} />
-                  Book Now
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Specialist Profile Modal */}
