@@ -297,6 +297,13 @@ const Settings: React.FC = () => {
         title: "Settings saved",
         description: "Your profile has been updated successfully.",
       });
+
+      // Navigate back to the appropriate dashboard
+      if (isSpecialist) {
+        navigate('/specialist-dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error) {
       console.error('Error saving settings:', error);
       toast({
