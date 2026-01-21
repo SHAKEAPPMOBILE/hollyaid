@@ -227,7 +227,7 @@ const EmployeeSignup: React.FC = () => {
                 <div className="space-y-2">
                   <Label htmlFor="phone" className="flex items-center gap-2">
                     <Phone size={16} />
-                    Phone / WhatsApp Number *
+                    WhatsApp or Phone Number *
                   </Label>
                   <Input
                     id="phone"
@@ -238,7 +238,7 @@ const EmployeeSignup: React.FC = () => {
                     required
                   />
                   <p className="text-xs text-muted-foreground">
-                    We'll send you WhatsApp/SMS notifications for booking updates.
+                    We'll notify you via WhatsApp or SMS for booking updates.
                   </p>
                 </div>
                 <div className="space-y-2">

@@ -191,7 +191,7 @@ const CompleteProfile: React.FC = () => {
               <div className="space-y-2">
                 <Label htmlFor="phoneNumber" className="flex items-center gap-2">
                   <Phone size={16} className="text-muted-foreground" />
-                  Phone / WhatsApp Number *
+                  WhatsApp or Phone Number *
                 </Label>
                 <Input
                   id="phoneNumber"
@@ -202,7 +202,7 @@ const CompleteProfile: React.FC = () => {
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  We'll send you WhatsApp/SMS notifications for booking updates.
+                  We'll notify you via WhatsApp or SMS for booking updates.
                 </p>
               </div>
 
