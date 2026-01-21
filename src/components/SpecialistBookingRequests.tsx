@@ -49,7 +49,7 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
   }, [specialistId]);
 
   const fetchBookings = async () => {
-    // Fetch bookings first
+    // Fetch only pending and approved bookings (active requests)
     const { data: bookingsData, error: bookingsError } = await supabase
       .from('bookings')
       .select(`
@@ -65,6 +65,7 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
         employee_user_id
       `)
       .eq('specialist_id', specialistId)
+      .in('status', ['pending', 'approved'])
       .order('created_at', { ascending: false });
 
     if (bookingsError) {
@@ -184,7 +185,7 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <Badge variant="secondary" className="flex items-center gap-1"><Clock size={12} /> Pending</Badge>;
+        return <Badge className="bg-orange-500 text-white flex items-center gap-1"><Clock size={12} /> Pending</Badge>;
       case 'approved':
         return <Badge className="bg-primary flex items-center gap-1"><CheckCircle size={12} /> Approved</Badge>;
       case 'declined':
