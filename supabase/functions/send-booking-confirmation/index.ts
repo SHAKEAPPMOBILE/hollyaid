@@ -168,6 +168,14 @@ serve(async (req) => {
         })
       : 'TBD';
 
+    // Construct proper JaaS meeting URL from room ID
+    const jaasApiKeyId = Deno.env.get("JAAS_API_KEY_ID");
+    let fullMeetingUrl = booking.meeting_link || '';
+    if (booking.meeting_link && jaasApiKeyId) {
+      const appId = jaasApiKeyId.split('/')[0];
+      fullMeetingUrl = `https://8x8.vc/${appId}/${booking.meeting_link}`;
+    }
+
     // Generate calendar invite if we have a confirmed datetime
     let calendarAttachment = null;
     if (booking.confirmed_datetime) {
@@ -178,8 +186,8 @@ serve(async (req) => {
         startDate,
         endDate,
         summary: `HollyAid Session: ${specialist.specialty || 'Wellness Consultation'}`,
-        description: `Wellness session with ${specialist.full_name}\\n\\nMeeting Link: ${booking.meeting_link || 'To be provided'}\\n\\n${booking.notes ? `Notes: ${booking.notes}` : ''}`,
-        location: booking.meeting_link || 'Online (link to be provided)',
+        description: `Wellness session with ${specialist.full_name}\\n\\nMeeting Link: ${fullMeetingUrl || 'To be provided'}\\n\\n${booking.notes ? `Notes: ${booking.notes}` : ''}`,
+        location: fullMeetingUrl || 'Online (link to be provided)',
         organizerEmail: 'bookings@hollyaid.com',
         organizerName: 'HollyAid',
         attendeeEmail: employee.email,
@@ -218,11 +226,11 @@ serve(async (req) => {
             ${specialist.specialty ? `<p style="margin: 0;"><strong>📋 Specialty:</strong> ${specialist.specialty}</p>` : ''}
           </div>
 
-          ${booking.meeting_link ? `
+          ${fullMeetingUrl ? `
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${booking.meeting_link}" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">Join Meeting</a>
+            <a href="${fullMeetingUrl}" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block;">Join Meeting</a>
           </div>
-          <p style="color: #666; font-size: 14px; text-align: center;">Or copy this link: <a href="${booking.meeting_link}" style="color: #10b981;">${booking.meeting_link}</a></p>
+          <p style="color: #666; font-size: 14px; text-align: center;">Or copy this link: <a href="${fullMeetingUrl}" style="color: #10b981;">${fullMeetingUrl}</a></p>
           ` : ''}
 
           ${calendarAttachment ? `
@@ -282,7 +290,7 @@ serve(async (req) => {
 
     // Send WhatsApp to employee
     if (employee.phone_number) {
-      const whatsappMessage = `🎉 Booking Confirmed!\n\nHi ${employee.full_name || 'there'}, your session with ${specialist.full_name} is confirmed!\n\n📅 ${meetingDate}\n🕐 ${meetingTime}\n\n${booking.meeting_link ? `👉 Join: ${booking.meeting_link}` : '👉 Login for details: https://hollyaid.lovable.app/auth'}`;
+      const whatsappMessage = `🎉 Booking Confirmed!\n\nHi ${employee.full_name || 'there'}, your session with ${specialist.full_name} is confirmed!\n\n📅 ${meetingDate}\n🕐 ${meetingTime}\n\n${fullMeetingUrl ? `👉 Join: ${fullMeetingUrl}` : '👉 Login for details: https://hollyaid.lovable.app/auth'}`;
       await sendWhatsAppNotification(employee.phone_number, whatsappMessage);
     }
 
