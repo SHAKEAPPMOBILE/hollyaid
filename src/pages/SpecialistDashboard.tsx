@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut, MessageSquare, History, Settings } from 'lucide-react';
+import { LogOut, MessageSquare, History, User } from 'lucide-react';
 import SpecialistBookingRequests from '@/components/SpecialistBookingRequests';
 import SpecialistBookingHistory from '@/components/SpecialistBookingHistory';
 
@@ -103,8 +103,8 @@ const SpecialistDashboard: React.FC = () => {
               {specialist.email}
             </span>
             <Button variant="ghost" size="sm" onClick={() => navigate('/settings')}>
-              <Settings size={16} />
-              Settings
+              <User size={16} />
+              My Profile
             </Button>
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
               <LogOut size={16} />

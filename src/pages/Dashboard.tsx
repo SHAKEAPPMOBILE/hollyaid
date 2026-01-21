@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Users, Calendar, Settings as SettingsIcon, LogOut, UserPlus, 
-  Clock, CheckCircle, XCircle, Video, BarChart3
+  Clock, CheckCircle, XCircle, Video, BarChart3, User
 } from 'lucide-react';
 import SpecialistsGrid from '@/components/SpecialistsGrid';
 import EmployeeManagement from '@/components/EmployeeManagement';
@@ -116,7 +116,7 @@ const Dashboard: React.FC = () => {
             <Logo size="sm" />
           </div>
           <div className="absolute right-4 flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-muted-foreground hidden sm:inline">
               {user?.email}
             </span>
             <Button 
@@ -124,8 +124,8 @@ const Dashboard: React.FC = () => {
               size="sm"
               onClick={() => navigate('/settings')}
             >
-              <SettingsIcon size={16} />
-              Settings
+              <User size={16} />
+              My Profile
             </Button>
             {isAdmin && (
               <Button 
