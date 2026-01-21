@@ -25,6 +25,7 @@ interface Booking {
     email: string;
     full_name: string | null;
   } | null;
+  company_name: string | null;
 }
 
 interface SpecialistBookingRequestsProps {
@@ -89,10 +90,22 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
 
     const profilesMap = new Map(profilesData?.map(p => [p.user_id, p]) || []);
 
-    // Merge bookings with employee data
+    // Fetch company info for employees
+    const { data: employeeCompanies } = await supabase
+      .from('company_employees')
+      .select('user_id, company_id, companies(name)')
+      .in('user_id', employeeIds)
+      .eq('status', 'accepted');
+
+    const companyMap = new Map(
+      employeeCompanies?.map(ec => [ec.user_id, (ec.companies as any)?.name]) || []
+    );
+
+    // Merge bookings with employee data and company name
     const enrichedBookings = bookingsData.map(booking => ({
       ...booking,
       employee: profilesMap.get(booking.employee_user_id) || null,
+      company_name: companyMap.get(booking.employee_user_id) || null,
     }));
 
     setBookings(enrichedBookings as unknown as Booking[]);
@@ -243,6 +256,9 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
                     <User size={18} className="text-muted-foreground" />
                     <h3 className="font-semibold text-lg">
                       {booking.employee?.full_name || booking.employee?.email || 'Unknown Employee'}
+                      {booking.company_name && (
+                        <span className="text-muted-foreground font-normal text-base"> from {booking.company_name}</span>
+                      )}
                     </h3>
                     {getStatusBadge(booking.status)}
                     <Badge variant="outline" className={`text-xs ${booking.session_type === 'first_session' ? 'border-blue-300 text-blue-600' : 'border-green-300 text-green-600'}`}>
@@ -290,6 +306,9 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
             <DialogTitle className="flex items-center gap-3">
               <User size={20} />
               {selectedBooking?.employee?.full_name || selectedBooking?.employee?.email}
+              {selectedBooking?.company_name && (
+                <span className="text-muted-foreground font-normal text-base"> from {selectedBooking.company_name}</span>
+              )}
             </DialogTitle>
           </DialogHeader>
           
