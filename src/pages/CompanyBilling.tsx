@@ -54,9 +54,18 @@ const CompanyBilling: React.FC = () => {
         .select("role")
         .eq("user_id", user.id)
         .eq("role", "company_admin")
-        .single();
+        .maybeSingle();
 
-      const admin = !!roleRow;
+      const { data: companyData, error } = await supabase
+        .from("companies")
+        .select("plan_type, minutes_included, minutes_used, subscription_period_end")
+        .eq("admin_user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      const isOwner = !!companyData;
+      const admin = !!roleRow || isOwner;
       setIsCompanyAdmin(admin);
 
       if (!admin) {
@@ -64,13 +73,6 @@ const CompanyBilling: React.FC = () => {
         return;
       }
 
-      const { data: companyData, error } = await supabase
-        .from("companies")
-        .select("plan_type, minutes_included, minutes_used, subscription_period_end")
-        .eq("admin_user_id", user.id)
-        .single();
-
-      if (error) throw error;
       setCompany((companyData as Company) ?? null);
     } catch (e) {
       console.error("Error loading company billing:", e);
