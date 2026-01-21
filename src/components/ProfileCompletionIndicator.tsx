@@ -6,7 +6,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { User, AlertCircle, Mail, CheckCircle2, XCircle } from 'lucide-react';
+import { User, AlertCircle, Mail, XCircle, RefreshCw } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProfileField {
   key: string;
@@ -31,9 +32,11 @@ interface ProfileCompletionIndicatorProps {
 const ProfileCompletionIndicator: React.FC<ProfileCompletionIndicatorProps> = ({ isSpecialist = false }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [profile, setProfile] = useState<Record<string, any> | null>(null);
   const [specialistProfile, setSpecialistProfile] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
+  const [resendingEmail, setResendingEmail] = useState(false);
 
   const isEmailVerified = !!user?.email_confirmed_at;
 
@@ -68,6 +71,34 @@ const ProfileCompletionIndicator: React.FC<ProfileCompletionIndicatorProps> = ({
       console.error('Error fetching profile:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendVerificationEmail = async () => {
+    if (!user?.email) return;
+    
+    setResendingEmail(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: user.email,
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Verification email sent",
+        description: "Please check your inbox and spam folder.",
+      });
+    } catch (error: any) {
+      console.error('Error resending verification email:', error);
+      toast({
+        title: "Failed to send email",
+        description: error.message || "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setResendingEmail(false);
     }
   };
 
@@ -181,14 +212,33 @@ const ProfileCompletionIndicator: React.FC<ProfileCompletionIndicatorProps> = ({
               </p>
             )}
             
-            <Button 
-              size="sm" 
-              variant={hasMissingRequired ? 'default' : 'outline'}
-              onClick={() => navigate('/settings')}
-              className="w-full sm:w-auto"
-            >
-              Complete Profile
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {hasUnverifiedEmail && (
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={handleResendVerificationEmail}
+                  disabled={resendingEmail}
+                  className="w-full sm:w-auto"
+                >
+                  {resendingEmail ? (
+                    <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <Mail className="h-4 w-4 mr-1" />
+                  )}
+                  Resend Verification Email
+                </Button>
+              )}
+              
+              <Button 
+                size="sm" 
+                variant={hasMissingRequired && !hasUnverifiedEmail ? 'default' : 'outline'}
+                onClick={() => navigate('/settings')}
+                className="w-full sm:w-auto"
+              >
+                Complete Profile
+              </Button>
+            </div>
           </div>
         </div>
       </CardContent>
