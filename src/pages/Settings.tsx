@@ -13,6 +13,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Phone, Bell, Save, Loader2, User, Briefcase, Building2, Camera, X, RotateCcw } from 'lucide-react';
 import { resetOnboardingTour } from '@/components/OnboardingTour';
+import { useTranslation } from 'react-i18next';
+import LanguagePicker from '@/components/LanguagePicker';
 
 type NotificationPreference = 'email' | 'whatsapp' | 'both';
 
@@ -20,6 +22,7 @@ const Settings: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Profile fields
@@ -335,8 +338,11 @@ const Settings: React.FC = () => {
         <div className="container flex h-16 items-center relative">
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="absolute left-4">
             <ArrowLeft size={16} />
-            Back
+            {t('common.back')}
           </Button>
+          <div className="absolute right-4">
+            <LanguagePicker />
+          </div>
           <div className="flex-1 flex justify-center">
             <Logo size="sm" />
           </div>

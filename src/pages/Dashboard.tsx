@@ -17,6 +17,8 @@ import MinutesUsageTracker from '@/components/MinutesUsageTracker';
 import ProfileCompletionIndicator from '@/components/ProfileCompletionIndicator';
 import OnboardingTour, { TourStep } from '@/components/OnboardingTour';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from 'react-i18next';
+import LanguagePicker from '@/components/LanguagePicker';
 
 const EMPLOYEE_TOUR_STEPS: TourStep[] = [
   {
@@ -92,6 +94,7 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, signOut, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
   
   const [company, setCompany] = useState<Company | null>(null);
   const [isCompanyAdmin, setIsCompanyAdmin] = useState(false);
@@ -190,10 +193,11 @@ const Dashboard: React.FC = () => {
             data-tour="profile-button"
           >
             <User size={16} />
-            <span className="hidden sm:inline">My Profile</span>
+            <span className="hidden sm:inline">{t('nav.myProfile')}</span>
           </Button>
           <Logo size="sm" />
           <div className="flex items-center gap-2">
+            <LanguagePicker />
             {isAdmin && (
               <Button 
                 variant="outline" 
@@ -201,7 +205,7 @@ const Dashboard: React.FC = () => {
                 onClick={() => navigate('/admin')}
               >
                 <SettingsIcon size={16} />
-                Admin
+                {t('nav.admin')}
               </Button>
             )}
             <Button 
@@ -210,7 +214,7 @@ const Dashboard: React.FC = () => {
               onClick={handleSignOut}
             >
               <LogOut size={16} />
-              <span className="hidden sm:inline">Sign Out</span>
+              <span className="hidden sm:inline">{t('nav.signOut')}</span>
             </Button>
           </div>
         </div>
@@ -247,21 +251,21 @@ const Dashboard: React.FC = () => {
             {isCompanyAdmin && (
               <TabsTrigger value="usage" className="flex items-center gap-2" data-tour="usage-tab">
                 <BarChart3 size={16} />
-                Usage
+                {t('dashboard.usage')}
               </TabsTrigger>
             )}
             <TabsTrigger value="specialists" className="flex items-center gap-2" data-tour="specialists-tab">
               <Users size={16} />
-              Specialists
+              {t('dashboard.specialists')}
             </TabsTrigger>
             <TabsTrigger value="bookings" className="flex items-center gap-2" data-tour="bookings-tab">
               <Calendar size={16} />
-              My Bookings
+              {t('dashboard.myBookings')}
             </TabsTrigger>
             {isCompanyAdmin && (
               <TabsTrigger value="employees" className="flex items-center gap-2" data-tour="employees-tab">
                 <UserPlus size={16} />
-                Employees
+                {t('dashboard.employees')}
               </TabsTrigger>
             )}
           </TabsList>

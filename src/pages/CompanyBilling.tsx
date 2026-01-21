@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Building2, Clock, ReceiptText } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { useTranslation } from "react-i18next";
+import LanguagePicker from "@/components/LanguagePicker";
 
 interface Company {
   plan_type: string | null;
@@ -25,6 +27,7 @@ type WeeklyUsagePoint = {
 const CompanyBilling: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { t } = useTranslation();
 
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState<Company | null>(null);
@@ -155,8 +158,11 @@ const CompanyBilling: React.FC = () => {
         <div className="container flex h-16 items-center relative">
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="absolute left-4">
             <ArrowLeft size={16} />
-            Back
+            {t("common.back")}
           </Button>
+          <div className="absolute right-4">
+            <LanguagePicker />
+          </div>
           <div className="flex-1 flex justify-center">
             <Logo size="sm" />
           </div>
@@ -165,8 +171,8 @@ const CompanyBilling: React.FC = () => {
 
       <main className="container py-8 max-w-5xl">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Company Billing</h1>
-          <p className="text-muted-foreground mt-1">Plan, renewal date, and minutes usage.</p>
+          <h1 className="text-3xl font-bold text-foreground">{t("billing.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("billing.subtitle")}</p>
         </div>
 
         <Card className="mb-6">
