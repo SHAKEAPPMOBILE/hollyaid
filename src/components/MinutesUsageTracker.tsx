@@ -31,9 +31,11 @@ const MinutesUsageTracker: React.FC<MinutesUsageTrackerProps> = ({ company }) =>
   const { user } = useAuth();
   const { toast } = useToast();
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [downgradeConfirmOpen, setDowngradeConfirmOpen] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [pendingPlanId, setPendingPlanId] = useState<string | null>(null);
 
   const planType = company.plan_type || 'starter';
   const minutesIncluded = company.minutes_included || 0;
@@ -108,6 +110,19 @@ const MinutesUsageTracker: React.FC<MinutesUsageTrackerProps> = ({ company }) =>
       setUpgradeLoading(false);
       setSelectedPlanId(null);
     }
+  };
+
+  const requestPlanChange = (newPlanId: string) => {
+    const newIndex = PLANS.findIndex((p) => p.id === newPlanId);
+    const isDowngrade = newIndex !== -1 && newIndex < currentPlanIndex;
+
+    if (isDowngrade) {
+      setPendingPlanId(newPlanId);
+      setDowngradeConfirmOpen(true);
+      return;
+    }
+
+    void handleUpgradePlan(newPlanId);
   };
 
   const handleManageSubscription = async () => {
@@ -385,7 +400,7 @@ const MinutesUsageTracker: React.FC<MinutesUsageTrackerProps> = ({ company }) =>
                       isCurrentPlan && "border-primary border-2 bg-primary/5",
                       isChange && "cursor-pointer hover:border-primary/50 hover:shadow-md"
                     )}
-                    onClick={() => isChange && !upgradeLoading && handleUpgradePlan(plan.id)}
+                    onClick={() => isChange && !upgradeLoading && requestPlanChange(plan.id)}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
@@ -436,7 +451,7 @@ const MinutesUsageTracker: React.FC<MinutesUsageTrackerProps> = ({ company }) =>
                             disabled={upgradeLoading}
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleUpgradePlan(plan.id);
+                              requestPlanChange(plan.id);
                             }}
                           >
                             {upgradeLoading && selectedPlanId === plan.id ? (
@@ -462,6 +477,63 @@ const MinutesUsageTracker: React.FC<MinutesUsageTrackerProps> = ({ company }) =>
             <p className="text-xs text-muted-foreground text-center">
               Upgrades are prorated. You'll only pay the difference for the remaining billing period.
             </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Downgrade confirmation */}
+      <Dialog open={downgradeConfirmOpen} onOpenChange={setDowngradeConfirmOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Confirm plan change</DialogTitle>
+            <DialogDescription>
+              You selected a lower plan. Downgrades take effect at your next renewal, and your minutes allowance resets on renewal.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="rounded-lg border bg-secondary/30 p-4 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground">What happens next?</p>
+              <ul className="mt-2 list-disc pl-5 space-y-1">
+                <li>Your current plan stays active until the end of the billing period.</li>
+                <li>The new (lower) plan starts on your next renewal date.</li>
+                <li>Minutes are reset on renewal based on the new plan allowance.</li>
+              </ul>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDowngradeConfirmOpen(false);
+                  setPendingPlanId(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (!pendingPlanId) return;
+                  setDowngradeConfirmOpen(false);
+                  void handleUpgradePlan(pendingPlanId);
+                  setPendingPlanId(null);
+                }}
+                disabled={upgradeLoading || !pendingPlanId}
+                className="gap-2"
+              >
+                {upgradeLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Processing…
+                  </>
+                ) : (
+                  <>
+                    <ArrowUpCircle className="h-4 w-4" />
+                    Upgrade
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
