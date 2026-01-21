@@ -106,28 +106,25 @@ const Settings: React.FC = () => {
         setSpecialistAvatarUrl(specialistData.avatar_url || null);
       }
 
-      // Company admin: fetch company minutes/plan so admins can manage billing from Settings
+      // Company admin: show company plan/minutes for company owners.
+      // Prefer role check, but fall back to company ownership (admin_user_id) so the UI is resilient.
       const { data: companyAdminRole } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
         .eq('role', 'company_admin')
-        .single();
+        .maybeSingle();
 
-      const isAdmin = !!companyAdminRole;
+      const { data: companyData } = await supabase
+        .from('companies')
+        .select('plan_type, minutes_included, minutes_used, subscription_period_end')
+        .eq('admin_user_id', user.id)
+        .maybeSingle();
+
+      const isOwner = !!companyData;
+      const isAdmin = !!companyAdminRole || isOwner;
       setIsCompanyAdmin(isAdmin);
-
-      if (isAdmin) {
-        const { data: companyData } = await supabase
-          .from('companies')
-          .select('plan_type, minutes_included, minutes_used, subscription_period_end')
-          .eq('admin_user_id', user.id)
-          .single();
-
-        setCompany((companyData as Company) ?? null);
-      } else {
-        setCompany(null);
-      }
+      setCompany((companyData as Company) ?? null);
     } catch (error) {
       console.error('Error fetching user data:', error);
     } finally {

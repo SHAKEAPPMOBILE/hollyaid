@@ -137,26 +137,23 @@ const Dashboard: React.FC = () => {
 
       setIsAdmin(!!adminRole);
 
-      // Check if user is company admin
+      // Check if user is company admin (role) OR company owner (admin_user_id)
       const { data: companyAdminRole } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
         .eq('role', 'company_admin')
-        .single();
+        .maybeSingle();
 
-      setIsCompanyAdmin(!!companyAdminRole);
+      const { data: companyData } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('admin_user_id', user.id)
+        .maybeSingle();
 
-      // Fetch company if user is company admin
-      if (companyAdminRole) {
-        const { data: companyData } = await supabase
-          .from('companies')
-          .select('*')
-          .eq('admin_user_id', user.id)
-          .single();
-
-        setCompany(companyData);
-      }
+      const isOwner = !!companyData;
+      setIsCompanyAdmin(!!companyAdminRole || isOwner);
+      setCompany(companyData ?? null);
     } catch (error) {
       console.error('Error fetching user data:', error);
     } finally {
