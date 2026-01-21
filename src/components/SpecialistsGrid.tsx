@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, Clock, Star, Filter, X, MessageCircle } from 'lucide-react';
+import { Calendar, Clock, Star, Filter, X, MessageCircle, Video } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import BookingRequestModal from './BookingRequestModal';
 import BookingConversation from './BookingConversation';
@@ -351,6 +351,11 @@ const SpecialistsGrid: React.FC = () => {
                     {isActive && (
                       <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-md">
                         <MessageCircle size={14} className="text-emerald-600 fill-emerald-600" />
+                      </div>
+                    )}
+                    {!isActive && specialist.video_url && (
+                      <div className="absolute -bottom-1 -right-1 bg-primary rounded-full p-1 shadow-md">
+                        <Video size={12} className="text-white" />
                       </div>
                     )}
                   </div>
