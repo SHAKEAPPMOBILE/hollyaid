@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import Logo from '@/components/Logo';
-import MinutesUsageTracker from '@/components/MinutesUsageTracker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,13 +15,6 @@ import { ArrowLeft, Phone, Bell, Save, Loader2, User, Briefcase, Building2, Came
 import { resetOnboardingTour } from '@/components/OnboardingTour';
 
 type NotificationPreference = 'email' | 'whatsapp' | 'both';
-
-interface Company {
-  plan_type: string | null;
-  minutes_included: number | null;
-  minutes_used: number | null;
-  subscription_period_end: string | null;
-}
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -45,10 +37,6 @@ const Settings: React.FC = () => {
   const [specialty, setSpecialty] = useState('');
   const [bio, setBio] = useState('');
   const [specialistAvatarUrl, setSpecialistAvatarUrl] = useState<string | null>(null);
-
-  // Company admin fields
-  const [isCompanyAdmin, setIsCompanyAdmin] = useState(false);
-  const [company, setCompany] = useState<Company | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -106,25 +94,7 @@ const Settings: React.FC = () => {
         setSpecialistAvatarUrl(specialistData.avatar_url || null);
       }
 
-      // Company admin: show company plan/minutes for company owners.
-      // Prefer role check, but fall back to company ownership (admin_user_id) so the UI is resilient.
-      const { data: companyAdminRole } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'company_admin')
-        .maybeSingle();
-
-      const { data: companyData } = await supabase
-        .from('companies')
-        .select('plan_type, minutes_included, minutes_used, subscription_period_end')
-        .eq('admin_user_id', user.id)
-        .maybeSingle();
-
-      const isOwner = !!companyData;
-      const isAdmin = !!companyAdminRole || isOwner;
-      setIsCompanyAdmin(isAdmin);
-      setCompany((companyData as Company) ?? null);
+      // Note: Company billing/plan details live on the dedicated Company Billing page.
     } catch (error) {
       console.error('Error fetching user data:', error);
     } finally {
@@ -383,29 +353,6 @@ const Settings: React.FC = () => {
         </div>
 
         <div className="space-y-6">
-          {/* Company plan & minutes (company admins only) */}
-          {isCompanyAdmin && company && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 size={20} />
-                  Company Plan & Minutes
-                </CardTitle>
-                <CardDescription>
-                  Track minutes used, view your current plan, and manage billing.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex justify-end mb-4">
-                  <Button variant="outline" onClick={() => navigate('/company-billing')}>
-                    Open Company Billing
-                  </Button>
-                </div>
-                <MinutesUsageTracker company={company} />
-              </CardContent>
-            </Card>
-          )}
-
           {/* Profile Photo Card */}
           <Card>
             <CardHeader>
