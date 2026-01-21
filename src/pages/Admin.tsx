@@ -236,12 +236,12 @@ const Admin: React.FC = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-card/80 backdrop-blur-md">
-        <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft size={16} />
-              Back
-            </Button>
+        <div className="container flex h-16 items-center relative">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')} className="absolute left-4">
+            <ArrowLeft size={16} />
+            Back
+          </Button>
+          <div className="flex-1 flex justify-center">
             <Logo size="sm" />
           </div>
         </div>

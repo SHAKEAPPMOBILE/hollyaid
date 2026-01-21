@@ -94,9 +94,11 @@ const SpecialistDashboard: React.FC = () => {
 
       {/* Header */}
       <header className="sticky top-0 z-40 w-full border-b bg-card/80 backdrop-blur-md">
-        <div className="container flex h-16 items-center justify-between">
-          <Logo size="sm" />
-          <div className="flex items-center gap-4">
+        <div className="container flex h-16 items-center relative">
+          <div className="flex-1 flex justify-center">
+            <Logo size="sm" />
+          </div>
+          <div className="absolute right-4 flex items-center gap-4">
             <span className="text-sm text-muted-foreground hidden sm:inline">
               {specialist.email}
             </span>

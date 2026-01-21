@@ -34,7 +34,9 @@ const PaymentSuccess: React.FC = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="w-full py-6 px-8">
-        <Logo size="md" />
+        <div className="flex justify-center">
+          <Logo size="md" />
+        </div>
       </header>
 
       <main className="flex-1 flex items-center justify-center px-4">
