@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  Users, Calendar, Settings, LogOut, UserPlus, 
+  Users, Calendar, Settings as SettingsIcon, LogOut, UserPlus, 
   Clock, CheckCircle, XCircle, Video, BarChart3
 } from 'lucide-react';
 import SpecialistsGrid from '@/components/SpecialistsGrid';
@@ -117,13 +117,21 @@ const Dashboard: React.FC = () => {
             <span className="text-sm text-muted-foreground">
               {user?.email}
             </span>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => navigate('/settings')}
+            >
+              <SettingsIcon size={16} />
+              Settings
+            </Button>
             {isAdmin && (
               <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => navigate('/admin')}
               >
-                <Settings size={16} />
+                <SettingsIcon size={16} />
                 Admin
               </Button>
             )}
