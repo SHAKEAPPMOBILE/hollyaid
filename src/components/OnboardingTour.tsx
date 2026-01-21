@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { X, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface TourStep {
   target?: string; // CSS selector for the element to highlight
@@ -24,21 +26,40 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({
   onComplete,
   onSkip,
 }) => {
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
-
-  const storageKey = `onboarding_completed_${tourKey}`;
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if tour was already completed
-    const completed = localStorage.getItem(storageKey);
-    if (!completed) {
-      // Small delay to let the page render
-      const timer = setTimeout(() => setIsVisible(true), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [storageKey]);
+    const checkOnboardingStatus = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('onboarding_completed_at')
+          .eq('user_id', user.id)
+          .single();
+
+        // Only show tour if user hasn't completed onboarding
+        if (!profile?.onboarding_completed_at) {
+          // Small delay to let the page render
+          setTimeout(() => setIsVisible(true), 500);
+        }
+      } catch (error) {
+        console.error('Error checking onboarding status:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkOnboardingStatus();
+  }, [user]);
 
   const updateTargetPosition = useCallback(() => {
     const step = steps[currentStep];
@@ -83,14 +104,27 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({
     }
   };
 
+  const markOnboardingComplete = async () => {
+    if (!user) return;
+    
+    try {
+      await supabase
+        .from('profiles')
+        .update({ onboarding_completed_at: new Date().toISOString() })
+        .eq('user_id', user.id);
+    } catch (error) {
+      console.error('Error marking onboarding complete:', error);
+    }
+  };
+
   const handleComplete = () => {
-    localStorage.setItem(storageKey, 'true');
+    markOnboardingComplete();
     setIsVisible(false);
     onComplete?.();
   };
 
   const handleSkip = () => {
-    localStorage.setItem(storageKey, 'true');
+    markOnboardingComplete();
     setIsVisible(false);
     onSkip?.();
   };
@@ -265,10 +299,26 @@ const OnboardingTour: React.FC<OnboardingTourProps> = ({
 export default OnboardingTour;
 
 // Utility function to reset tour (can be called from settings)
-export const resetOnboardingTour = (tourKey: string) => {
-  localStorage.removeItem(`onboarding_completed_${tourKey}`);
+export const resetOnboardingTour = async (userId: string) => {
+  try {
+    await supabase
+      .from('profiles')
+      .update({ onboarding_completed_at: null })
+      .eq('user_id', userId);
+  } catch (error) {
+    console.error('Error resetting onboarding tour:', error);
+  }
 };
 
-export const hasCompletedTour = (tourKey: string): boolean => {
-  return localStorage.getItem(`onboarding_completed_${tourKey}`) === 'true';
+export const hasCompletedTour = async (userId: string): Promise<boolean> => {
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('onboarding_completed_at')
+      .eq('user_id', userId)
+      .single();
+    return !!data?.onboarding_completed_at;
+  } catch {
+    return false;
+  }
 };

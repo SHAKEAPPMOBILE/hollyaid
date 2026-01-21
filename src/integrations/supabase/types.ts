@@ -310,6 +310,7 @@ export type Database = {
           id: string
           job_title: string | null
           notification_preference: string
+          onboarding_completed_at: string | null
           phone_number: string | null
           updated_at: string
           user_id: string
@@ -323,6 +324,7 @@ export type Database = {
           id?: string
           job_title?: string | null
           notification_preference?: string
+          onboarding_completed_at?: string | null
           phone_number?: string | null
           updated_at?: string
           user_id: string
@@ -336,6 +338,7 @@ export type Database = {
           id?: string
           job_title?: string | null
           notification_preference?: string
+          onboarding_completed_at?: string | null
           phone_number?: string | null
           updated_at?: string
           user_id?: string
