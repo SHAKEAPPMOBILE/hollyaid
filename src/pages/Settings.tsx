@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import Logo from '@/components/Logo';
+import MinutesUsageTracker from '@/components/MinutesUsageTracker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,13 @@ import { ArrowLeft, Phone, Bell, Save, Loader2, User, Briefcase, Building2, Came
 import { resetOnboardingTour } from '@/components/OnboardingTour';
 
 type NotificationPreference = 'email' | 'whatsapp' | 'both';
+
+interface Company {
+  plan_type: string | null;
+  minutes_included: number | null;
+  minutes_used: number | null;
+  subscription_period_end: string | null;
+}
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -37,6 +45,10 @@ const Settings: React.FC = () => {
   const [specialty, setSpecialty] = useState('');
   const [bio, setBio] = useState('');
   const [specialistAvatarUrl, setSpecialistAvatarUrl] = useState<string | null>(null);
+
+  // Company admin fields
+  const [isCompanyAdmin, setIsCompanyAdmin] = useState(false);
+  const [company, setCompany] = useState<Company | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -92,6 +104,29 @@ const Settings: React.FC = () => {
         setSpecialty(specialistData.specialty || '');
         setBio(specialistData.bio || '');
         setSpecialistAvatarUrl(specialistData.avatar_url || null);
+      }
+
+      // Company admin: fetch company minutes/plan so admins can manage billing from Settings
+      const { data: companyAdminRole } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'company_admin')
+        .single();
+
+      const isAdmin = !!companyAdminRole;
+      setIsCompanyAdmin(isAdmin);
+
+      if (isAdmin) {
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('plan_type, minutes_included, minutes_used, subscription_period_end')
+          .eq('admin_user_id', user.id)
+          .single();
+
+        setCompany((companyData as Company) ?? null);
+      } else {
+        setCompany(null);
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -351,6 +386,24 @@ const Settings: React.FC = () => {
         </div>
 
         <div className="space-y-6">
+          {/* Company plan & minutes (company admins only) */}
+          {isCompanyAdmin && company && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 size={20} />
+                  Company Plan & Minutes
+                </CardTitle>
+                <CardDescription>
+                  Track minutes used, view your current plan, and manage billing.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MinutesUsageTracker company={company} />
+              </CardContent>
+            </Card>
+          )}
+
           {/* Profile Photo Card */}
           <Card>
             <CardHeader>
