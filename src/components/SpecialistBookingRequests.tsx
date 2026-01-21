@@ -175,6 +175,12 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
       toast({
         title: "Booking declined",
       });
+      
+      // Notify employee about the decline
+      supabase.functions.invoke('notify-booking-decline', {
+        body: { bookingId }
+      }).catch(err => console.error('Failed to send decline notification:', err));
+      
       fetchBookings();
       onBookingUpdate?.();
     }

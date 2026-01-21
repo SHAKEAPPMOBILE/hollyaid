@@ -7,6 +7,44 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function sendWhatsAppNotification(to: string, message: string) {
+  const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
+  const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");
+  const twilioWhatsAppNumber = Deno.env.get("TWILIO_WHATSAPP_NUMBER");
+
+  if (!accountSid || !authToken || !twilioWhatsAppNumber || !to) {
+    console.log("WhatsApp not configured or no phone number");
+    return;
+  }
+
+  try {
+    let formattedTo = to.replace(/\s+/g, '').replace(/[^+\d]/g, '');
+    if (!formattedTo.startsWith('+')) {
+      formattedTo = '+' + formattedTo;
+    }
+
+    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+    const formData = new URLSearchParams();
+    formData.append('To', `whatsapp:${formattedTo}`);
+    formData.append('From', `whatsapp:${twilioWhatsAppNumber}`);
+    formData.append('Body', message);
+
+    const response = await fetch(twilioUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + btoa(`${accountSid}:${authToken}`),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData.toString(),
+    });
+
+    const data = await response.json();
+    console.log("WhatsApp notification result:", data);
+  } catch (error) {
+    console.error("WhatsApp notification error:", error);
+  }
+}
+
 // Generate ICS calendar file content
 function generateICSContent(options: {
   startDate: Date;
@@ -96,10 +134,10 @@ serve(async (req) => {
       throw new Error("Booking not found");
     }
 
-    // Get employee details
+    // Get employee details with phone number
     const { data: employee } = await supabaseClient
       .from('profiles')
-      .select('email, full_name')
+      .select('email, full_name, phone_number')
       .eq('user_id', booking.employee_user_id)
       .single();
 
@@ -241,6 +279,12 @@ serve(async (req) => {
     );
 
     console.log("Specialist email sent:", specialistEmail);
+
+    // Send WhatsApp to employee
+    if (employee.phone_number) {
+      const whatsappMessage = `🎉 Booking Confirmed!\n\nHi ${employee.full_name || 'there'}, your session with ${specialist.full_name} is confirmed!\n\n📅 ${meetingDate}\n🕐 ${meetingTime}\n\n${booking.meeting_link ? `👉 Join: ${booking.meeting_link}` : '👉 Login for details: https://hollyaid.lovable.app/auth'}`;
+      await sendWhatsAppNotification(employee.phone_number, whatsappMessage);
+    }
 
     return new Response(JSON.stringify({ 
       success: true, 
