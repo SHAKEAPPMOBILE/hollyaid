@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { User, AlertCircle, Mail, XCircle, RefreshCw } from 'lucide-react';
+import { User, AlertCircle, Mail, XCircle, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProfileField {
@@ -37,8 +37,46 @@ const ProfileCompletionIndicator: React.FC<ProfileCompletionIndicatorProps> = ({
   const [specialistProfile, setSpecialistProfile] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
   const [resendingEmail, setResendingEmail] = useState(false);
+  const [justVerified, setJustVerified] = useState(false);
+  const previousEmailVerified = useRef<boolean | null>(null);
 
   const isEmailVerified = !!user?.email_confirmed_at;
+
+  // Auto-refresh detection for email verification
+  useEffect(() => {
+    // Check if email was just verified (was false, now true)
+    if (previousEmailVerified.current === false && isEmailVerified) {
+      setJustVerified(true);
+      toast({
+        title: "Email Verified!",
+        description: "Your email has been successfully verified.",
+      });
+      
+      // Hide the success message after 5 seconds
+      const timer = setTimeout(() => {
+        setJustVerified(false);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+    
+    previousEmailVerified.current = isEmailVerified;
+  }, [isEmailVerified, toast]);
+
+  // Poll for auth state changes when email is unverified
+  useEffect(() => {
+    if (isEmailVerified) return;
+
+    const pollInterval = setInterval(async () => {
+      const { data: { user: refreshedUser } } = await supabase.auth.getUser();
+      if (refreshedUser?.email_confirmed_at && !isEmailVerified) {
+        // Trigger a session refresh to update the auth context
+        await supabase.auth.refreshSession();
+      }
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [isEmailVerified]);
 
   useEffect(() => {
     if (user) {
@@ -153,6 +191,29 @@ const ProfileCompletionIndicator: React.FC<ProfileCompletionIndicatorProps> = ({
   const isComplete = missingFields.length === 0;
   const hasMissingRequired = missingFields.some(f => f.required);
   const hasUnverifiedEmail = missingFields.some(f => f.isEmailVerification);
+
+  // Show success message when email was just verified
+  if (justVerified) {
+    return (
+      <Card className="border-green-500/50 bg-green-50 dark:bg-green-950/20">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-center gap-4">
+            <div className="p-2 rounded-lg bg-green-500/10">
+              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-sm font-medium text-green-700 dark:text-green-300">
+                Email Verified Successfully!
+              </h4>
+              <p className="text-xs text-green-600/80 dark:text-green-400/80 mt-0.5">
+                Thank you for verifying your email address.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // Don't show if profile is complete
   if (isComplete) {
