@@ -176,9 +176,6 @@ const Dashboard: React.FC = () => {
             <Logo size="sm" />
           </div>
           <div className="absolute right-4 flex items-center gap-4">
-            <span className="text-sm text-muted-foreground hidden sm:inline">
-              {user?.email}
-            </span>
             <Button 
               variant="ghost" 
               size="sm"
