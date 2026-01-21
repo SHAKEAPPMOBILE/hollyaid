@@ -11,7 +11,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Phone, Bell, Save, Loader2, User, Briefcase, Building2, Camera, X } from 'lucide-react';
+import { ArrowLeft, Phone, Bell, Save, Loader2, User, Briefcase, Building2, Camera, X, RotateCcw } from 'lucide-react';
+import { resetOnboardingTour } from '@/components/OnboardingTour';
 
 type NotificationPreference = 'email' | 'whatsapp' | 'both';
 
@@ -602,6 +603,37 @@ const Settings: React.FC = () => {
                   </div>
                 </div>
               </RadioGroup>
+            </CardContent>
+          </Card>
+
+          {/* Onboarding Tour */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <RotateCcw size={20} />
+                Onboarding Tour
+              </CardTitle>
+              <CardDescription>
+                Restart the welcome tour to learn about platform features
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  // Reset all tour keys
+                  resetOnboardingTour('employee-dashboard');
+                  resetOnboardingTour('company-admin-dashboard');
+                  resetOnboardingTour('specialist-dashboard');
+                  toast({
+                    title: "Tour Reset",
+                    description: "The onboarding tour will show again when you visit your dashboard.",
+                  });
+                }}
+              >
+                <RotateCcw size={16} />
+                Restart Onboarding Tour
+              </Button>
             </CardContent>
           </Card>
 

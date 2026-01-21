@@ -15,7 +15,66 @@ import EmployeeManagement from '@/components/EmployeeManagement';
 import BookingsList from '@/components/BookingsList';
 import MinutesUsageTracker from '@/components/MinutesUsageTracker';
 import ProfileCompletionIndicator from '@/components/ProfileCompletionIndicator';
+import OnboardingTour, { TourStep } from '@/components/OnboardingTour';
 import { useToast } from '@/hooks/use-toast';
+
+const EMPLOYEE_TOUR_STEPS: TourStep[] = [
+  {
+    title: "Welcome to HollyAid! 🎉",
+    description: "We're excited to have you here. Let us show you around the platform so you can get the most out of your wellness journey.",
+    position: 'center',
+  },
+  {
+    target: '[data-tour="specialists-tab"]',
+    title: "Browse Specialists",
+    description: "Find wellness specialists that match your needs. View their profiles, specialties, and book sessions directly.",
+    position: 'bottom',
+  },
+  {
+    target: '[data-tour="bookings-tab"]',
+    title: "Manage Your Bookings",
+    description: "View all your upcoming and past sessions here. You can also reschedule or cancel bookings when needed.",
+    position: 'bottom',
+  },
+  {
+    target: '[data-tour="profile-button"]',
+    title: "Complete Your Profile",
+    description: "Make sure to complete your profile with your contact information. This helps specialists prepare for your sessions.",
+    position: 'bottom',
+  },
+];
+
+const COMPANY_ADMIN_TOUR_STEPS: TourStep[] = [
+  {
+    title: "Welcome to HollyAid! 🎉",
+    description: "As a company administrator, you have access to powerful tools to manage your team's wellness program.",
+    position: 'center',
+  },
+  {
+    target: '[data-tour="usage-tab"]',
+    title: "Track Usage",
+    description: "Monitor your company's wellness minutes usage and see how your team is engaging with the platform.",
+    position: 'bottom',
+  },
+  {
+    target: '[data-tour="specialists-tab"]',
+    title: "Browse Specialists",
+    description: "Explore available wellness specialists. You can also book sessions for yourself as a company admin.",
+    position: 'bottom',
+  },
+  {
+    target: '[data-tour="employees-tab"]',
+    title: "Manage Employees",
+    description: "Invite team members, manage access, and track employee engagement with the wellness program.",
+    position: 'bottom',
+  },
+  {
+    target: '[data-tour="profile-button"]',
+    title: "Your Profile",
+    description: "Access your profile settings and notification preferences here.",
+    position: 'bottom',
+  },
+];
 
 interface Company {
   id: string;
@@ -124,6 +183,7 @@ const Dashboard: React.FC = () => {
               variant="ghost" 
               size="sm"
               onClick={() => navigate('/settings')}
+              data-tour="profile-button"
             >
               <User size={16} />
               My Profile
@@ -152,6 +212,11 @@ const Dashboard: React.FC = () => {
 
       {/* Main Content */}
       <main className="container py-8">
+        {/* Onboarding Tour */}
+        <OnboardingTour 
+          steps={isCompanyAdmin ? COMPANY_ADMIN_TOUR_STEPS : EMPLOYEE_TOUR_STEPS}
+          tourKey={isCompanyAdmin ? 'company-admin-dashboard' : 'employee-dashboard'}
+        />
         {/* Profile Completion Indicator */}
         <div className="mb-6">
           <ProfileCompletionIndicator />
@@ -171,21 +236,21 @@ const Dashboard: React.FC = () => {
         <Tabs defaultValue={isCompanyAdmin ? "usage" : "specialists"} className="space-y-6">
           <TabsList className="bg-secondary/50">
             {isCompanyAdmin && (
-              <TabsTrigger value="usage" className="flex items-center gap-2">
+              <TabsTrigger value="usage" className="flex items-center gap-2" data-tour="usage-tab">
                 <BarChart3 size={16} />
                 Usage
               </TabsTrigger>
             )}
-            <TabsTrigger value="specialists" className="flex items-center gap-2">
+            <TabsTrigger value="specialists" className="flex items-center gap-2" data-tour="specialists-tab">
               <Users size={16} />
               Specialists
             </TabsTrigger>
-            <TabsTrigger value="bookings" className="flex items-center gap-2">
+            <TabsTrigger value="bookings" className="flex items-center gap-2" data-tour="bookings-tab">
               <Calendar size={16} />
               My Bookings
             </TabsTrigger>
             {isCompanyAdmin && (
-              <TabsTrigger value="employees" className="flex items-center gap-2">
+              <TabsTrigger value="employees" className="flex items-center gap-2" data-tour="employees-tab">
                 <UserPlus size={16} />
                 Employees
               </TabsTrigger>

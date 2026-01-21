@@ -12,6 +12,39 @@ import { LogOut, MessageSquare, History, User } from 'lucide-react';
 import SpecialistBookingRequests from '@/components/SpecialistBookingRequests';
 import SpecialistBookingHistory from '@/components/SpecialistBookingHistory';
 import ProfileCompletionIndicator from '@/components/ProfileCompletionIndicator';
+import OnboardingTour, { TourStep } from '@/components/OnboardingTour';
+
+const SPECIALIST_TOUR_STEPS: TourStep[] = [
+  {
+    title: "Welcome to HollyAid! 🎉",
+    description: "We're thrilled to have you as a wellness specialist. Let us show you how to manage your bookings and connect with clients.",
+    position: 'center',
+  },
+  {
+    target: '[data-tour="pending-requests"]',
+    title: "Pending Requests",
+    description: "This shows how many booking requests are waiting for your response. Stay on top of these to provide great service!",
+    position: 'bottom',
+  },
+  {
+    target: '[data-tour="requests-tab"]',
+    title: "Booking Requests",
+    description: "View and manage incoming session requests here. You can accept, decline, or propose alternative times.",
+    position: 'bottom',
+  },
+  {
+    target: '[data-tour="history-tab"]',
+    title: "Booking History",
+    description: "Track all your past and completed sessions. Great for keeping records and following up with clients.",
+    position: 'bottom',
+  },
+  {
+    target: '[data-tour="profile-button"]',
+    title: "Your Profile",
+    description: "Keep your profile up to date! A complete profile with a photo helps clients feel confident booking with you.",
+    position: 'bottom',
+  },
+];
 
 interface Specialist {
   id: string;
@@ -103,7 +136,7 @@ const SpecialistDashboard: React.FC = () => {
             <span className="text-sm text-muted-foreground hidden sm:inline">
               {specialist.email}
             </span>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/settings')}>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} data-tour="profile-button">
               <User size={16} />
               My Profile
             </Button>
@@ -117,6 +150,12 @@ const SpecialistDashboard: React.FC = () => {
 
       {/* Main Content */}
       <main className="container py-8">
+        {/* Onboarding Tour */}
+        <OnboardingTour 
+          steps={SPECIALIST_TOUR_STEPS}
+          tourKey="specialist-dashboard"
+        />
+
         {/* Profile Completion Indicator */}
         <div className="mb-6">
           <ProfileCompletionIndicator isSpecialist />
@@ -129,7 +168,7 @@ const SpecialistDashboard: React.FC = () => {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <Card className={pendingBookingsCount > 0 ? 'ring-2 ring-primary' : ''}>
+          <Card className={pendingBookingsCount > 0 ? 'ring-2 ring-primary' : ''} data-tour="pending-requests">
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-xl bg-primary/10">
@@ -147,14 +186,14 @@ const SpecialistDashboard: React.FC = () => {
         {/* Tabs for Requests and History */}
         <Tabs defaultValue="requests" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="requests" className="flex items-center gap-2">
+            <TabsTrigger value="requests" className="flex items-center gap-2" data-tour="requests-tab">
               <MessageSquare size={16} />
               Booking Requests
               {pendingBookingsCount > 0 && (
                 <Badge className="ml-1 bg-primary text-primary-foreground">{pendingBookingsCount}</Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="history" className="flex items-center gap-2">
+            <TabsTrigger value="history" className="flex items-center gap-2" data-tour="history-tab">
               <History size={16} />
               Booking History
             </TabsTrigger>
