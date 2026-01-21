@@ -4,11 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Clock, CheckCircle, XCircle, MessageCircle, User, UserPlus, Users } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, XCircle, MessageCircle, User, UserPlus, Users, Video } from 'lucide-react';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import BookingConversation from './BookingConversation';
 import CompleteSessionModal from './CompleteSessionModal';
+import VideoCallModal from './VideoCallModal';
 
 interface Booking {
   id: string;
@@ -41,6 +42,7 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [processing, setProcessing] = useState<string | null>(null);
   const [bookingToComplete, setBookingToComplete] = useState<Booking | null>(null);
+  const [videoCallBooking, setVideoCallBooking] = useState<Booking | null>(null);
 
   useEffect(() => {
     fetchBookings();
@@ -365,10 +367,16 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
                 {selectedBooking.status === 'approved' && (
                   <>
                     {selectedBooking.meeting_link && (
-                      <Button variant="outline" className="flex-1" asChild>
-                        <a href={selectedBooking.meeting_link} target="_blank" rel="noopener noreferrer">
-                          Join Meeting
-                        </a>
+                      <Button 
+                        variant="outline" 
+                        className="flex-1 gap-2"
+                        onClick={() => {
+                          setVideoCallBooking(selectedBooking);
+                          setSelectedBooking(null);
+                        }}
+                      >
+                        <Video size={16} />
+                        Join Meeting
                       </Button>
                     )}
                     <Button
@@ -408,6 +416,20 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
           open={!!bookingToComplete}
           onClose={() => setBookingToComplete(null)}
           onCompleted={handleSessionCompleted}
+        />
+      )}
+
+      {/* Video Call Modal */}
+      {videoCallBooking && videoCallBooking.meeting_link && (
+        <VideoCallModal
+          meetingLink={videoCallBooking.meeting_link}
+          open={!!videoCallBooking}
+          onClose={() => setVideoCallBooking(null)}
+          userType="specialist"
+          participantName={videoCallBooking.employee?.full_name || videoCallBooking.employee?.email || 'Employee'}
+          onCompleteSession={() => {
+            setBookingToComplete(videoCallBooking);
+          }}
         />
       )}
     </>
