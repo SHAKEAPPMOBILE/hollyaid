@@ -14,6 +14,7 @@ import LeaveReviewModal from './LeaveReviewModal';
 import PostSessionReviewPrompt from './PostSessionReviewPrompt';
 import VideoCallModal from './VideoCallModal';
 import { useUnreadMessages } from '@/hooks/useUnreadMessages';
+import { useMeetingReminder } from '@/hooks/useMeetingReminder';
 
 interface Booking {
   id: string;
@@ -51,6 +52,9 @@ const BookingsList: React.FC = () => {
   // Track unread messages
   const bookingIds = useMemo(() => bookings.map(b => b.id), [bookings]);
   const { unreadCounts, markAsRead } = useUnreadMessages(bookingIds);
+
+  // Meeting reminders with sound and browser notifications
+  useMeetingReminder(bookings);
 
   // Mark as read when opening conversation
   const handleOpenConversation = (booking: Booking) => {
