@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Users, AlertCircle, CheckCircle2, Building2 } from 'lucide-react';
+import { Users, AlertCircle, CheckCircle2, Building2, Phone } from 'lucide-react';
 
 const EmployeeSignup: React.FC = () => {
   const navigate = useNavigate();
@@ -20,6 +20,7 @@ const EmployeeSignup: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [matchingCompany, setMatchingCompany] = useState<any>(null);
   const [checkingCompany, setCheckingCompany] = useState(false);
 
@@ -58,6 +59,15 @@ const EmployeeSignup: React.FC = () => {
       toast({
         title: "No matching company",
         description: "Your email domain is not registered with an active company subscription.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!phoneNumber.trim()) {
+      toast({
+        title: "Phone number required",
+        description: "Please enter your phone number for notifications.",
         variant: "destructive",
       });
       return;
@@ -128,6 +138,12 @@ const EmployeeSignup: React.FC = () => {
             user_id: newUser.id,
             role: 'employee',
           });
+
+        // Update profile with phone number
+        await supabase
+          .from('profiles')
+          .update({ phone_number: phoneNumber.trim() })
+          .eq('user_id', newUser.id);
 
         toast({
           title: "Welcome to HollyAid!",
@@ -207,6 +223,23 @@ const EmployeeSignup: React.FC = () => {
                       No active company found for this email domain
                     </p>
                   )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="flex items-center gap-2">
+                    <Phone size={16} />
+                    Phone / WhatsApp Number *
+                  </Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+1 234 567 8900"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    We'll send you WhatsApp/SMS notifications for booking updates.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>

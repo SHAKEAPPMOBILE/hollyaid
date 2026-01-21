@@ -14,10 +14,47 @@ interface NotifyBookingRequest {
   bookingId: string;
 }
 
+async function sendWhatsAppNotification(to: string, message: string) {
+  const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
+  const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");
+  const twilioWhatsAppNumber = Deno.env.get("TWILIO_WHATSAPP_NUMBER");
+
+  if (!accountSid || !authToken || !twilioWhatsAppNumber || !to) {
+    console.log("WhatsApp not configured or no phone number");
+    return;
+  }
+
+  try {
+    let formattedTo = to.replace(/\s+/g, '').replace(/[^+\d]/g, '');
+    if (!formattedTo.startsWith('+')) {
+      formattedTo = '+' + formattedTo;
+    }
+
+    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+    const formData = new URLSearchParams();
+    formData.append('To', `whatsapp:${formattedTo}`);
+    formData.append('From', `whatsapp:${twilioWhatsAppNumber}`);
+    formData.append('Body', message);
+
+    const response = await fetch(twilioUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + btoa(`${accountSid}:${authToken}`),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData.toString(),
+    });
+
+    const data = await response.json();
+    console.log("WhatsApp notification result:", data);
+  } catch (error) {
+    console.error("WhatsApp notification error:", error);
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   console.log("notify-specialist-booking function called");
   
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -30,12 +67,10 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("bookingId is required");
     }
 
-    // Create Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch booking with specialist and employee details
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
       .select(`
@@ -45,7 +80,8 @@ const handler = async (req: Request): Promise<Response> => {
         specialist:specialists!bookings_specialist_id_fkey(
           id,
           full_name,
-          email
+          email,
+          phone_number
         ),
         employee:profiles!bookings_employee_user_id_fkey(
           full_name,
@@ -62,15 +98,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Booking data:", JSON.stringify(booking, null, 2));
 
-    // Handle the data - specialist and employee come as single objects from the join
-    const specialist = booking.specialist as unknown as { id: string; full_name: string; email: string } | null;
+    const specialist = booking.specialist as unknown as { id: string; full_name: string; email: string; phone_number: string | null } | null;
     const employee = booking.employee as unknown as { full_name: string | null; email: string } | null;
 
     if (!specialist?.email) {
       throw new Error("Specialist email not found");
     }
 
-    // Format the proposed date/time
     const proposedDate = booking.proposed_datetime
       ? new Date(booking.proposed_datetime).toLocaleString("en-US", {
           weekday: "long",
@@ -85,7 +119,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const employeeName = employee?.full_name || employee?.email || "An employee";
 
-    // Send email to specialist
+    // Send email
     const emailResponse = await resend.emails.send({
       from: "HollyAid <onboarding@resend.dev>",
       to: [specialist.email],
@@ -147,6 +181,12 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     console.log("Email sent successfully:", emailResponse);
+
+    // Send WhatsApp notification
+    if (specialist.phone_number) {
+      const whatsappMessage = `🙏 New Booking Request!\n\nHi ${specialist.full_name}, you have a new booking request from ${employeeName}.\n\n📅 ${proposedDate}\n\n👉 Login to respond: https://hollyaid.lovable.app/auth`;
+      await sendWhatsAppNotification(specialist.phone_number, whatsappMessage);
+    }
 
     return new Response(
       JSON.stringify({ success: true, emailResponse }),
