@@ -14,6 +14,7 @@ import SpecialistsGrid from '@/components/SpecialistsGrid';
 import EmployeeManagement from '@/components/EmployeeManagement';
 import BookingsList from '@/components/BookingsList';
 import MinutesUsageTracker from '@/components/MinutesUsageTracker';
+import ProfileCompletionIndicator from '@/components/ProfileCompletionIndicator';
 import { useToast } from '@/hooks/use-toast';
 
 interface Company {
@@ -151,6 +152,11 @@ const Dashboard: React.FC = () => {
 
       {/* Main Content */}
       <main className="container py-8">
+        {/* Profile Completion Indicator */}
+        <div className="mb-6">
+          <ProfileCompletionIndicator />
+        </div>
+
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">
             {company ? `${company.name} Dashboard` : 'Your Wellness Portal'}
