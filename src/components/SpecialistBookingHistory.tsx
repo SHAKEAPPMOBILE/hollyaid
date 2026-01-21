@@ -18,6 +18,7 @@ interface Booking {
     email: string;
     full_name: string | null;
   } | null;
+  company_name: string | null;
 }
 
 interface SpecialistBookingHistoryProps {
@@ -67,10 +68,22 @@ const SpecialistBookingHistory: React.FC<SpecialistBookingHistoryProps> = ({
 
     const profilesMap = new Map(profilesData?.map(p => [p.user_id, p]) || []);
 
-    // Merge bookings with employee data
+    // Fetch company info for employees
+    const { data: employeeCompanies } = await supabase
+      .from('company_employees')
+      .select('user_id, company_id, companies(name)')
+      .in('user_id', employeeIds)
+      .eq('status', 'accepted');
+
+    const companyMap = new Map(
+      employeeCompanies?.map(ec => [ec.user_id, (ec.companies as any)?.name]) || []
+    );
+
+    // Merge bookings with employee data and company name
     const enrichedBookings = bookingsData.map(booking => ({
       ...booking,
       employee: profilesMap.get(booking.employee_user_id) || null,
+      company_name: companyMap.get(booking.employee_user_id) || null,
     }));
 
     setBookings(enrichedBookings as unknown as Booking[]);
@@ -128,6 +141,9 @@ const SpecialistBookingHistory: React.FC<SpecialistBookingHistoryProps> = ({
                 <div className="flex items-center gap-3 mb-2">
                   <h3 className="font-semibold text-lg">
                     {booking.employee?.full_name || booking.employee?.email || 'Unknown Employee'}
+                    {booking.company_name && (
+                      <span className="text-muted-foreground font-normal text-base"> from {booking.company_name}</span>
+                    )}
                   </h3>
                   {getStatusBadge(booking.status)}
                   <Badge variant="outline" className={`text-xs ${booking.session_type === 'first_session' ? 'border-blue-300 text-blue-600' : 'border-green-300 text-green-600'}`}>
