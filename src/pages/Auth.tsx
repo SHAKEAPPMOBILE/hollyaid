@@ -270,6 +270,10 @@ const Auth: React.FC = () => {
               }
 
               console.log('Auto-linked employee to company:', matchingCompany.name);
+              toast({
+                title: "Welcome!",
+                description: `You've been added to ${matchingCompany.name}`,
+              });
             }
           }
         }
