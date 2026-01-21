@@ -399,6 +399,11 @@ const Settings: React.FC = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="flex justify-end mb-4">
+                  <Button variant="outline" onClick={() => navigate('/company-billing')}>
+                    Open Company Billing
+                  </Button>
+                </div>
                 <MinutesUsageTracker company={company} />
               </CardContent>
             </Card>

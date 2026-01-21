@@ -15,6 +15,7 @@ import EmployeeSignup from "./pages/EmployeeSignup";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import CompleteProfile from "./pages/CompleteProfile";
 import Settings from "./pages/Settings";
+import CompanyBilling from "./pages/CompanyBilling";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/payment-success" element={<PaymentSuccess />} />
             <Route path="/complete-profile" element={<CompleteProfile />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/company-billing" element={<CompanyBilling />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
