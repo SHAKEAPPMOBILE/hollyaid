@@ -11,7 +11,7 @@ import {
   DialogHeader, 
   DialogTitle 
 } from '@/components/ui/dialog';
-import { Clock, TrendingUp, Zap, AlertTriangle, XCircle, ArrowUpCircle, Check, Building2, Loader2, CreditCard } from 'lucide-react';
+import { Clock, TrendingUp, Zap, AlertTriangle, XCircle, ArrowDownCircle, ArrowUpCircle, Check, Building2, Loader2, CreditCard } from 'lucide-react';
 import { WELLNESS_PLANS, PLANS, isTestAccountEmail } from '@/lib/plans';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -391,6 +391,8 @@ const MinutesUsageTracker: React.FC<MinutesUsageTrackerProps> = ({ company }) =>
                 const isDowngrade = index < currentPlanIndex;
                 const isUpgrade = index > currentPlanIndex;
                 const isChange = !isCurrentPlan;
+                const actionLabel = isDowngrade ? 'Downgrade' : 'Upgrade';
+                const ActionIcon = isDowngrade ? ArrowDownCircle : ArrowUpCircle;
                 
                 return (
                   <Card 
@@ -461,8 +463,8 @@ const MinutesUsageTracker: React.FC<MinutesUsageTrackerProps> = ({ company }) =>
                               </>
                             ) : (
                               <>
-                                <ArrowUpCircle className="h-4 w-4 mr-2" />
-                                Upgrade
+                                <ActionIcon className="h-4 w-4 mr-2" />
+                                {actionLabel}
                               </>
                             )}
                           </Button>
