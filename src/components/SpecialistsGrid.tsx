@@ -12,6 +12,7 @@ import BookingConversation from './BookingConversation';
 import SpecialistProfileModal from './SpecialistProfileModal';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 
 interface Specialist {
   id: string;
@@ -86,6 +87,26 @@ const SpecialistsGrid: React.FC = () => {
 
   const hasActiveConversation = (specialistId: string): boolean => {
     return getActiveBooking(specialistId) !== null;
+  };
+
+  // Get active booking IDs for unread message tracking
+  const activeBookingIds = useMemo(() => {
+    const now = new Date();
+    return activeBookings
+      .filter(booking => {
+        const bookingTime = booking.confirmed_datetime || booking.proposed_datetime;
+        return bookingTime && new Date(bookingTime) > now;
+      })
+      .map(b => b.id);
+  }, [activeBookings]);
+
+  const { unreadCounts, markAsRead } = useUnreadMessages(activeBookingIds);
+
+  // Get unread count for a specialist's active booking
+  const getUnreadCount = (specialistId: string): number => {
+    const activeBooking = getActiveBooking(specialistId);
+    if (!activeBooking) return 0;
+    return unreadCounts[activeBooking.id] || 0;
   };
 
   const fetchActiveBookings = async () => {
@@ -196,6 +217,8 @@ const SpecialistsGrid: React.FC = () => {
     if (activeBooking) {
       setConversationBookingId(activeBooking.id);
       setConversationSpecialistName(specialist.full_name);
+      // Mark messages as read when opening conversation
+      markAsRead(activeBooking.id);
     }
   };
 
@@ -286,18 +309,27 @@ const SpecialistsGrid: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredSpecialists.map((specialist) => {
           const isActive = hasActiveConversation(specialist.id);
+          const unreadCount = getUnreadCount(specialist.id);
           
           return (
             <Card 
               key={specialist.id} 
               className={cn(
-                "group transition-all duration-300 border-0 cursor-pointer",
+                "group transition-all duration-300 border-0 cursor-pointer relative",
                 isActive 
                   ? "bg-emerald-600 text-white shadow-lg hover:bg-emerald-700" 
                   : "hover:shadow-wellness shadow-soft"
               )}
               onClick={() => handleCardClick(specialist)}
             >
+              {/* Unread message badge */}
+              {isActive && unreadCount > 0 && (
+                <div className="absolute -top-2 -right-2 z-10">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white text-xs font-bold shadow-lg animate-pulse">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                </div>
+              )}
               <CardHeader className="pb-4">
                 <div className="flex items-center gap-4">
                   <div className="relative">
