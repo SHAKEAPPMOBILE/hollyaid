@@ -12,6 +12,7 @@ import BookingConversation from './BookingConversation';
 import RescheduleBookingModal from './RescheduleBookingModal';
 import LeaveReviewModal from './LeaveReviewModal';
 import PostSessionReviewPrompt from './PostSessionReviewPrompt';
+import VideoCallModal from './VideoCallModal';
 
 interface Booking {
   id: string;
@@ -43,6 +44,7 @@ const BookingsList: React.FC = () => {
   const [bookingToReview, setBookingToReview] = useState<Booking | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [completedSessionPrompt, setCompletedSessionPrompt] = useState<Booking | null>(null);
+  const [videoCallBooking, setVideoCallBooking] = useState<Booking | null>(null);
   const previousBookingStatusRef = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
@@ -223,11 +225,13 @@ const BookingsList: React.FC = () => {
                       Messages
                     </Button>
                     {booking.status === 'approved' && booking.meeting_link && (
-                      <Button variant="wellness" size="sm" asChild>
-                        <a href={booking.meeting_link} target="_blank" rel="noopener noreferrer">
-                          <Video size={16} className="mr-1" />
-                          Join Meeting
-                        </a>
+                      <Button 
+                        variant="wellness" 
+                        size="sm" 
+                        onClick={() => setVideoCallBooking(booking)}
+                      >
+                        <Video size={16} className="mr-1" />
+                        Join Meeting
                       </Button>
                     )}
                     {canReschedule(booking.status) && (
@@ -345,6 +349,20 @@ const BookingsList: React.FC = () => {
           onLeaveReview={() => {
             setBookingToReview(completedSessionPrompt);
             setCompletedSessionPrompt(null);
+          }}
+        />
+      )}
+
+      {/* Video Call Modal */}
+      {videoCallBooking && videoCallBooking.meeting_link && (
+        <VideoCallModal
+          meetingLink={videoCallBooking.meeting_link}
+          open={!!videoCallBooking}
+          onClose={() => setVideoCallBooking(null)}
+          userType="employee"
+          participantName={videoCallBooking.specialist?.full_name || 'Specialist'}
+          onLeaveReview={() => {
+            setBookingToReview(videoCallBooking);
           }}
         />
       )}
