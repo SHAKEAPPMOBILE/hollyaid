@@ -21,6 +21,7 @@ interface Specialist {
   bio: string | null;
   avatar_url: string | null;
   rate_tier: string | null;
+  video_url?: string | null;
   avg_rating?: number;
   review_count?: number;
 }
@@ -150,7 +151,7 @@ const SpecialistsGrid: React.FC = () => {
     // Use the specialists_public view which excludes sensitive data
     const { data, error } = await supabase
       .from('specialists_public')
-      .select('id, full_name, specialty, bio, avatar_url, rate_tier');
+      .select('id, full_name, specialty, bio, avatar_url, rate_tier, video_url');
 
     if (!error && data) {
       // Fetch review stats for all specialists
