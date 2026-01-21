@@ -3,9 +3,10 @@ import hollyaidLogo from '@/assets/hollyaid-logo.png';
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg';
+  className?: string;
 }
 
-const Logo: React.FC<LogoProps> = ({ size = 'md' }) => {
+const Logo: React.FC<LogoProps> = ({ size = 'md', className = '' }) => {
   const sizes = {
     sm: 'h-8',
     md: 'h-10',
@@ -16,7 +17,7 @@ const Logo: React.FC<LogoProps> = ({ size = 'md' }) => {
     <img 
       src={hollyaidLogo} 
       alt="Hollyaid" 
-      className={`${sizes[size]} w-auto`}
+      className={`${sizes[size]} w-auto ${className}`}
     />
   );
 };
