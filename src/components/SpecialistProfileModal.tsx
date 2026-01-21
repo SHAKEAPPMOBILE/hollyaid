@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, X, Star } from 'lucide-react';
+import { Calendar, Clock, X, Star, Play } from 'lucide-react';
 import SpecialistReviews from './SpecialistReviews';
 
 interface Specialist {
@@ -14,6 +14,7 @@ interface Specialist {
   bio: string | null;
   avatar_url: string | null;
   rate_tier: string | null;
+  video_url?: string | null;
 }
 
 interface SpecialistProfileModalProps {
@@ -109,10 +110,16 @@ const SpecialistProfileModal: React.FC<SpecialistProfileModalProps> = ({
               <span className="font-semibold">{tierInfo.minutes} min/session</span>
             </div>
 
-            {/* Tabs for Bio & Reviews */}
+            {/* Tabs for Bio, Video & Reviews */}
             <Tabs defaultValue="about" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className={`grid w-full ${specialist.video_url ? 'grid-cols-3' : 'grid-cols-2'}`}>
                 <TabsTrigger value="about">About</TabsTrigger>
+                {specialist.video_url && (
+                  <TabsTrigger value="video" className="flex items-center gap-1">
+                    <Play size={14} />
+                    Video
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="reviews" className="flex items-center gap-1">
                   <Star size={14} />
                   Reviews
@@ -129,6 +136,20 @@ const SpecialistProfileModal: React.FC<SpecialistProfileModalProps> = ({
                   </p>
                 )}
               </TabsContent>
+              {specialist.video_url && (
+                <TabsContent value="video" className="mt-4">
+                  <div className="rounded-lg overflow-hidden bg-muted aspect-video">
+                    <video 
+                      src={specialist.video_url} 
+                      controls 
+                      className="w-full h-full object-contain"
+                      preload="metadata"
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  </div>
+                </TabsContent>
+              )}
               <TabsContent value="reviews" className="mt-4">
                 <SpecialistReviews specialistId={specialist.id} />
               </TabsContent>

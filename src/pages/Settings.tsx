@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Phone, Bell, Save, Loader2, User, Briefcase, Building2, Camera, X, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Phone, Bell, Save, Loader2, User, Briefcase, Building2, Camera, X, RotateCcw, Video, Trash2 } from 'lucide-react';
 import { resetOnboardingTour } from '@/components/OnboardingTour';
 import { useTranslation } from 'react-i18next';
 import LanguagePicker from '@/components/LanguagePicker';
@@ -24,6 +24,7 @@ const Settings: React.FC = () => {
   const { toast } = useToast();
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   // Profile fields
   const [fullName, setFullName] = useState('');
@@ -40,10 +41,12 @@ const Settings: React.FC = () => {
   const [specialty, setSpecialty] = useState('');
   const [bio, setBio] = useState('');
   const [specialistAvatarUrl, setSpecialistAvatarUrl] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -82,7 +85,7 @@ const Settings: React.FC = () => {
       // Check if user is a specialist
       const { data: specialistData } = await supabase
         .from('specialists')
-        .select('id, full_name, email, phone_number, specialty, bio, avatar_url')
+        .select('id, full_name, email, phone_number, specialty, bio, avatar_url, video_url')
         .eq('user_id', user.id)
         .single();
 
@@ -95,6 +98,7 @@ const Settings: React.FC = () => {
         setSpecialty(specialistData.specialty || '');
         setBio(specialistData.bio || '');
         setSpecialistAvatarUrl(specialistData.avatar_url || null);
+        setVideoUrl(specialistData.video_url || null);
       }
 
       // Note: Company billing/plan details live on the dedicated Company Billing page.
@@ -238,6 +242,113 @@ const Settings: React.FC = () => {
       });
     } finally {
       setUploadingAvatar(false);
+    }
+  };
+
+  const handleVideoClick = () => {
+    videoInputRef.current?.click();
+  };
+
+  const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user || !specialistId) return;
+
+    // Validate file type
+    if (!file.type.startsWith('video/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a video file (MP4, MOV, etc.)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 100MB)
+    if (file.size > 100 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload a video smaller than 100MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingVideo(true);
+
+    try {
+      // Create a unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/intro-${Date.now()}.${fileExt}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('specialist-videos')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('specialist-videos')
+        .getPublicUrl(fileName);
+
+      // Update specialist with new video URL
+      const { error: updateError } = await supabase
+        .from('specialists')
+        .update({ video_url: publicUrl, updated_at: new Date().toISOString() })
+        .eq('id', specialistId);
+
+      if (updateError) throw updateError;
+
+      setVideoUrl(publicUrl);
+
+      toast({
+        title: "Video uploaded",
+        description: "Your intro video has been uploaded successfully.",
+      });
+    } catch (error) {
+      console.error('Error uploading video:', error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload video. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingVideo(false);
+      if (videoInputRef.current) {
+        videoInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveVideo = async () => {
+    if (!user || !specialistId) return;
+
+    setUploadingVideo(true);
+
+    try {
+      const { error: updateError } = await supabase
+        .from('specialists')
+        .update({ video_url: null, updated_at: new Date().toISOString() })
+        .eq('id', specialistId);
+
+      if (updateError) throw updateError;
+
+      setVideoUrl(null);
+
+      toast({
+        title: "Video removed",
+        description: "Your intro video has been removed.",
+      });
+    } catch (error) {
+      console.error('Error removing video:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove video. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingVideo(false);
     }
   };
 
@@ -535,6 +646,90 @@ const Settings: React.FC = () => {
                     This will be displayed on your public profile
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Intro Video Card (Specialists Only) */}
+          {isSpecialist && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Video size={20} />
+                  Intro Video
+                </CardTitle>
+                <CardDescription>
+                  Upload a 1-minute video introducing yourself to potential clients
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <input
+                  ref={videoInputRef}
+                  type="file"
+                  accept="video/*"
+                  onChange={handleVideoUpload}
+                  className="hidden"
+                />
+                
+                {videoUrl ? (
+                  <div className="space-y-4">
+                    <div className="relative rounded-lg overflow-hidden bg-muted aspect-video">
+                      <video 
+                        src={videoUrl} 
+                        controls 
+                        className="w-full h-full object-contain"
+                        preload="metadata"
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleVideoClick}
+                        disabled={uploadingVideo}
+                      >
+                        {uploadingVideo ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <Video size={16} />
+                        )}
+                        Replace Video
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={handleRemoveVideo}
+                        disabled={uploadingVideo}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 size={16} />
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div 
+                    className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={handleVideoClick}
+                  >
+                    {uploadingVideo ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 size={32} className="animate-spin text-primary" />
+                        <p className="text-sm text-muted-foreground">Uploading video...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <Video size={32} className="mx-auto text-muted-foreground mb-2" />
+                        <p className="text-sm font-medium">Click to upload your intro video</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          MP4, MOV or WebM. Max 100MB, recommended 1 minute.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
