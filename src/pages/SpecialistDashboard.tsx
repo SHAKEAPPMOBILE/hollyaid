@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { LogOut, MessageSquare, History, User } from 'lucide-react';
 import SpecialistBookingRequests from '@/components/SpecialistBookingRequests';
 import SpecialistBookingHistory from '@/components/SpecialistBookingHistory';
+import ProfileCompletionIndicator from '@/components/ProfileCompletionIndicator';
 
 interface Specialist {
   id: string;
@@ -116,6 +117,11 @@ const SpecialistDashboard: React.FC = () => {
 
       {/* Main Content */}
       <main className="container py-8">
+        {/* Profile Completion Indicator */}
+        <div className="mb-6">
+          <ProfileCompletionIndicator isSpecialist />
+        </div>
+
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">Welcome, {specialist.full_name}</h1>
           <p className="text-muted-foreground mt-1">{specialist.specialty} • ${specialist.hourly_rate}/hour</p>
