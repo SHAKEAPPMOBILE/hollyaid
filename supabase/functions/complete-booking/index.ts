@@ -178,7 +178,18 @@ const handler = async (req: Request): Promise<Response> => {
     const minutesToDeduct = Math.ceil(sessionMinutes * multiplier);
     console.log(`Tier: ${tier}, Multiplier: ${multiplier}, Session: ${sessionMinutes}min, Deducting: ${minutesToDeduct} minutes`);
 
-    // Find the employee's company with admin info
+    // Find the employee's company - first try company_employees, then fallback to email domain
+    type CompanyType = { 
+      id: string; 
+      name: string; 
+      minutes_used: number | null; 
+      minutes_included: number | null;
+      admin_user_id: string | null;
+    };
+    
+    let company: CompanyType | null = null;
+
+    // Try to find via company_employees table
     const { data: employeeCompany, error: companyError } = await supabase
       .from("company_employees")
       .select(`
@@ -194,18 +205,41 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("user_id", booking.employee_user_id)
       .single();
 
-    if (companyError || !employeeCompany) {
-      console.error("Error fetching employee company:", companyError);
-      throw new Error("Employee's company not found");
-    }
+    if (!companyError && employeeCompany?.company) {
+      company = employeeCompany.company as unknown as CompanyType;
+      console.log("Found company via company_employees:", company.name);
+    } else {
+      console.log("Employee not in company_employees, trying email domain fallback");
+      
+      // Fallback: Get employee's email from profiles and match by domain
+      const { data: employeeProfile, error: profileError } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("user_id", booking.employee_user_id)
+        .single();
 
-    const company = employeeCompany.company as unknown as { 
-      id: string; 
-      name: string; 
-      minutes_used: number | null; 
-      minutes_included: number | null;
-      admin_user_id: string | null;
-    } | null;
+      if (profileError || !employeeProfile?.email) {
+        console.error("Error fetching employee profile:", profileError);
+        throw new Error("Employee profile not found");
+      }
+
+      const emailDomain = employeeProfile.email.split("@")[1];
+      console.log("Looking for company with email domain:", emailDomain);
+
+      const { data: domainCompany, error: domainError } = await supabase
+        .from("companies")
+        .select("id, name, minutes_used, minutes_included, admin_user_id")
+        .eq("email_domain", emailDomain)
+        .single();
+
+      if (domainError || !domainCompany) {
+        console.error("Error finding company by domain:", domainError);
+        throw new Error("Employee's company not found");
+      }
+
+      company = domainCompany as CompanyType;
+      console.log("Found company via email domain:", company.name);
+    }
 
     if (!company) {
       throw new Error("Company data not found");
