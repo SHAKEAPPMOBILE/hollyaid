@@ -14,3 +14,24 @@ verify_jwt = false
 
 [functions.notify-booking-reschedule]
 verify_jwt = false
+
+[functions.send-whatsapp-notification]
+verify_jwt = false
+
+[functions.notify-specialist-booking]
+verify_jwt = false
+
+[functions.complete-booking]
+verify_jwt = false
+
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.customer-portal]
+verify_jwt = false
+
+[functions.check-subscription]
+verify_jwt = false
+
+[functions.invite-specialist]
+verify_jwt = false

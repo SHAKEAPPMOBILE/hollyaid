@@ -15,8 +15,45 @@ interface NotifyMessageRequest {
   messagePreview: string;
 }
 
+async function sendWhatsAppNotification(to: string, message: string) {
+  const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
+  const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");
+  const twilioWhatsAppNumber = Deno.env.get("TWILIO_WHATSAPP_NUMBER");
+
+  if (!accountSid || !authToken || !twilioWhatsAppNumber || !to) {
+    console.log("WhatsApp not configured or no phone number");
+    return;
+  }
+
+  try {
+    let formattedTo = to.replace(/\s+/g, '').replace(/[^+\d]/g, '');
+    if (!formattedTo.startsWith('+')) {
+      formattedTo = '+' + formattedTo;
+    }
+
+    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+    const formData = new URLSearchParams();
+    formData.append('To', `whatsapp:${formattedTo}`);
+    formData.append('From', `whatsapp:${twilioWhatsAppNumber}`);
+    formData.append('Body', message);
+
+    const response = await fetch(twilioUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + btoa(`${accountSid}:${authToken}`),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData.toString(),
+    });
+
+    const data = await response.json();
+    console.log("WhatsApp notification result:", data);
+  } catch (error) {
+    console.error("WhatsApp notification error:", error);
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -26,13 +63,11 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log(`Processing message notification for booking ${bookingId} from ${senderType}`);
 
-    // Create Supabase client with service role
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Fetch booking details with employee and specialist info
     const { data: booking, error: bookingError } = await supabaseAdmin
       .from("bookings")
       .select("id, employee_user_id, specialist_id")
@@ -44,17 +79,15 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Booking not found");
     }
 
-    // Get employee profile
     const { data: employeeProfile } = await supabaseAdmin
       .from("profiles")
-      .select("email, full_name")
+      .select("email, full_name, phone_number")
       .eq("user_id", booking.employee_user_id)
       .single();
 
-    // Get specialist info
     const { data: specialist } = await supabaseAdmin
       .from("specialists")
-      .select("email, full_name")
+      .select("email, full_name, phone_number")
       .eq("id", booking.specialist_id)
       .single();
 
@@ -63,8 +96,8 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Profiles not found");
     }
 
-    // Determine recipient based on sender type
     const recipientEmail = senderType === "employee" ? specialist.email : employeeProfile.email;
+    const recipientPhone = senderType === "employee" ? specialist.phone_number : employeeProfile.phone_number;
     const recipientName = senderType === "employee" 
       ? (specialist.full_name || "Specialist") 
       : (employeeProfile.full_name || "Employee");
@@ -74,7 +107,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sending notification to ${recipientEmail}`);
 
-    // Truncate message preview
     const truncatedMessage = messagePreview.length > 100 
       ? messagePreview.substring(0, 100) + "..." 
       : messagePreview;
@@ -125,6 +157,12 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     console.log("Email sent successfully:", emailResponse);
+
+    // Send WhatsApp notification
+    if (recipientPhone) {
+      const whatsappMessage = `💬 New Message from ${senderName}\n\n"${truncatedMessage}"\n\n👉 Reply now: https://hollyaid.lovable.app/auth`;
+      await sendWhatsAppNotification(recipientPhone, whatsappMessage);
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

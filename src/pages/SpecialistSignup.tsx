@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle, CheckCircle2, DollarSign } from 'lucide-react';
+import { AlertCircle, CheckCircle2, DollarSign, Phone } from 'lucide-react';
 import { SPECIALIST_TIERS, SpecialistTier } from '@/lib/plans';
 
 const SpecialistSignup: React.FC = () => {
@@ -28,6 +28,7 @@ const SpecialistSignup: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [selectedTier, setSelectedTier] = useState<SpecialistTier>('standard');
+  const [phoneNumber, setPhoneNumber] = useState('');
 
   useEffect(() => {
     validateToken();
@@ -77,6 +78,15 @@ const SpecialistSignup: React.FC = () => {
       return;
     }
 
+    if (!phoneNumber.trim()) {
+      toast({
+        title: "Phone number required",
+        description: "Please enter your phone number for notifications.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -97,7 +107,7 @@ const SpecialistSignup: React.FC = () => {
       if (user) {
         const tier = SPECIALIST_TIERS[selectedTier];
         
-        // Update specialist with user_id, rate tier, and activate
+        // Update specialist with user_id, rate tier, phone number, and activate
         const { error: updateError } = await supabase
           .from('specialists')
           .update({
@@ -105,7 +115,8 @@ const SpecialistSignup: React.FC = () => {
             invitation_accepted_at: new Date().toISOString(),
             rate_tier: selectedTier,
             hourly_rate: tier.hourlyRate,
-            is_active: true, // Activate specialist after signup
+            is_active: true,
+            phone_number: phoneNumber.trim(),
           })
           .eq('id', specialistData.id);
 
@@ -237,6 +248,24 @@ const SpecialistSignup: React.FC = () => {
                   </RadioGroup>
                   <p className="text-xs text-muted-foreground">
                     HollyAid takes a 20% platform fee. You can change your tier later.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="flex items-center gap-2">
+                    <Phone size={16} />
+                    Phone / WhatsApp Number *
+                  </Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+1 234 567 8900"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    We'll send you WhatsApp/SMS notifications for new bookings and messages.
                   </p>
                 </div>
 
