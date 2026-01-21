@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Video, PhoneOff, Star, CheckCircle, Calendar, ArrowRight, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface VideoCallModalProps {
-  meetingLink: string;
+  meetingLink: string; // This is now the room name, not full URL
   open: boolean;
   onClose: () => void;
   userType: 'specialist' | 'employee';
@@ -12,6 +14,8 @@ interface VideoCallModalProps {
   onLeaveReview?: () => void;
   onCompleteSession?: () => void;
 }
+
+const JAAS_APP_ID = 'vpaas-magic-cookie-700eb763d1c046a3be78af5445dcba9d';
 
 const VideoCallModal: React.FC<VideoCallModalProps> = ({
   meetingLink,
@@ -22,8 +26,12 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   onLeaveReview,
   onCompleteSession,
 }) => {
-  const [callState, setCallState] = useState<'in-call' | 'ended'>('in-call');
+  const { user } = useAuth();
+  const [callState, setCallState] = useState<'loading' | 'in-call' | 'ended'>('loading');
   const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [meetingUrl, setMeetingUrl] = useState<string | null>(null);
+  const [tokenError, setTokenError] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<{ full_name: string | null; avatar_url: string | null } | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Listen for Jitsi postMessage events
@@ -60,11 +68,66 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     }
   }, []);
 
-  // Reset state when modal opens and set up event listeners
+  // Fetch user profile when modal opens
   useEffect(() => {
-    if (open) {
-      setCallState('in-call');
+    if (open && user) {
+      const fetchProfile = async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('user_id', user.id)
+          .single();
+        setUserProfile(data);
+      };
+      fetchProfile();
+    }
+  }, [open, user]);
+
+  // Generate JaaS token when modal opens
+  useEffect(() => {
+    if (open && user) {
+      setCallState('loading');
       setIframeLoaded(false);
+      setMeetingUrl(null);
+      setTokenError(null);
+      
+      // Extract room name from meeting_link (it might be a full URL or just a room name)
+      let roomName = meetingLink;
+      if (meetingLink.includes('/')) {
+        // If it's a full URL, extract the room name
+        const urlParts = meetingLink.split('/');
+        roomName = urlParts[urlParts.length - 1].split('#')[0].split('?')[0];
+      }
+
+      const generateToken = async () => {
+        try {
+          const { data, error } = await supabase.functions.invoke('generate-jaas-token', {
+            body: {
+              roomName,
+              userName: userProfile?.full_name || user.email?.split('@')[0] || 'Guest',
+              userEmail: user.email || '',
+              userId: user.id,
+              avatarUrl: userProfile?.avatar_url || '',
+              isModerator: userType === 'specialist',
+            },
+          });
+
+          if (error) throw error;
+          if (!data?.meetingUrl) throw new Error('No meeting URL returned');
+
+          setMeetingUrl(data.meetingUrl);
+          setCallState('in-call');
+        } catch (err) {
+          console.error('Failed to generate JaaS token:', err);
+          setTokenError(err instanceof Error ? err.message : 'Failed to join meeting');
+          // Fallback to basic 8x8.vc link without JWT for backwards compatibility
+          const fallbackUrl = `https://8x8.vc/${JAAS_APP_ID}/${roomName}`;
+          setMeetingUrl(fallbackUrl);
+          setCallState('in-call');
+        }
+      };
+
+      generateToken();
       
       // Listen for postMessage events from Jitsi
       window.addEventListener('message', handleJitsiMessage);
@@ -73,22 +136,32 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
         window.removeEventListener('message', handleJitsiMessage);
       };
     }
-  }, [open, handleJitsiMessage]);
+  }, [open, meetingLink, user, userProfile, userType, handleJitsiMessage]);
 
   const handleEndCall = () => {
     setCallState('ended');
+    setMeetingUrl(null);
   };
 
   const handleClose = () => {
-    setCallState('in-call');
+    setCallState('loading');
     setIframeLoaded(false);
+    setMeetingUrl(null);
+    setTokenError(null);
     onClose();
   };
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
       <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 gap-0 overflow-hidden">
-        {callState === 'in-call' ? (
+        {callState === 'loading' ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">Preparing video session...</p>
+            </div>
+          </div>
+        ) : callState === 'in-call' && meetingUrl ? (
           <div className="flex flex-col h-full">
             {/* Call Header */}
             <div className="flex items-center justify-between px-4 py-3 bg-card border-b">
@@ -124,14 +197,14 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
               )}
               <iframe
                 ref={iframeRef}
-                src={meetingLink}
+                src={meetingUrl}
                 className="w-full h-full border-0"
                 allow="camera; microphone; fullscreen; display-capture; autoplay"
                 onLoad={() => setIframeLoaded(true)}
               />
             </div>
           </div>
-        ) : (
+        ) : callState === 'ended' ? (
           // Post-Call Screen
           <div className="flex flex-col items-center justify-center h-full p-8 bg-gradient-to-b from-background to-secondary/20">
             <div className="max-w-md w-full text-center space-y-6">
@@ -222,7 +295,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
               </p>
             </div>
           </div>
-        )}
+        ) : null}
       </DialogContent>
     </Dialog>
   );
