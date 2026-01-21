@@ -249,6 +249,21 @@ const Settings: React.FC = () => {
     videoInputRef.current?.click();
   };
 
+  const getVideoDuration = (file: File): Promise<number> => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(video.src);
+        resolve(video.duration);
+      };
+      video.onerror = () => {
+        reject(new Error('Failed to load video metadata'));
+      };
+      video.src = URL.createObjectURL(file);
+    });
+  };
+
   const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user || !specialistId) return;
@@ -271,6 +286,25 @@ const Settings: React.FC = () => {
         variant: "destructive",
       });
       return;
+    }
+
+    // Validate video duration (max 60 seconds)
+    try {
+      const duration = await getVideoDuration(file);
+      if (duration > 60) {
+        toast({
+          title: "Video too long",
+          description: `Your video is ${Math.round(duration)} seconds. Please upload a video under 1 minute.`,
+          variant: "destructive",
+        });
+        if (videoInputRef.current) {
+          videoInputRef.current.value = '';
+        }
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking video duration:', error);
+      // Continue with upload if duration check fails
     }
 
     setUploadingVideo(true);
