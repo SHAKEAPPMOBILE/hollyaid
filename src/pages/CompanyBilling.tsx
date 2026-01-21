@@ -7,6 +7,8 @@ import MinutesUsageTracker from "@/components/MinutesUsageTracker";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Building2, Clock, ReceiptText } from "lucide-react";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 interface Company {
   plan_type: string | null;
@@ -15,6 +17,11 @@ interface Company {
   subscription_period_end: string | null;
 }
 
+type WeeklyUsagePoint = {
+  weekLabel: string;
+  minutes: number;
+};
+
 const CompanyBilling: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -22,6 +29,9 @@ const CompanyBilling: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState<Company | null>(null);
   const [isCompanyAdmin, setIsCompanyAdmin] = useState(false);
+
+  const [weeklyLoading, setWeeklyLoading] = useState(false);
+  const [weekly, setWeekly] = useState<WeeklyUsagePoint[]>([]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -70,6 +80,34 @@ const CompanyBilling: React.FC = () => {
     }
   };
 
+  const fetchWeeklyBreakdown = async () => {
+    setWeeklyLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("company-minutes-breakdown");
+      if (error) throw error;
+
+      const weeks = (data?.weeks ?? []) as Array<{ week_start: string; minutes_used: number }>;
+      const points: WeeklyUsagePoint[] = weeks.map((w) => {
+        const start = new Date(w.week_start);
+        const label = start.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+        return { weekLabel: label, minutes: Number(w.minutes_used ?? 0) };
+      });
+      setWeekly(points);
+    } catch (e) {
+      console.error("Error loading weekly breakdown:", e);
+      setWeekly([]);
+    } finally {
+      setWeeklyLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isCompanyAdmin && company) {
+      void fetchWeeklyBreakdown();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCompanyAdmin, !!company]);
+
   const summary = useMemo(() => {
     const included = company?.minutes_included ?? 0;
     const used = company?.minutes_used ?? 0;
@@ -98,6 +136,16 @@ const CompanyBilling: React.FC = () => {
   if (!isCompanyAdmin || !company) {
     return null;
   }
+
+  const chartConfig: ChartConfig = {
+    minutes: {
+      label: "Minutes used",
+      theme: {
+        light: "hsl(var(--primary))",
+        dark: "hsl(var(--primary))",
+      },
+    },
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -164,6 +212,30 @@ const CompanyBilling: React.FC = () => {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Monthly minutes breakdown</CardTitle>
+            <CardDescription>Weekly minutes used over the last 30 days.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {weeklyLoading ? (
+              <div className="h-56 flex items-center justify-center text-muted-foreground">Loading chart…</div>
+            ) : weekly.length === 0 ? (
+              <div className="h-56 flex items-center justify-center text-muted-foreground">No usage yet.</div>
+            ) : (
+              <ChartContainer config={chartConfig} className="h-56 w-full">
+                <BarChart data={weekly} margin={{ left: 4, right: 4, top: 8, bottom: 0 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="weekLabel" tickLine={false} axisLine={false} />
+                  <YAxis tickLine={false} axisLine={false} width={32} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="minutes" fill="var(--color-minutes)" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ChartContainer>
+            )}
           </CardContent>
         </Card>
 
