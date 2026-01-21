@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { User, Briefcase, Loader2 } from 'lucide-react';
+import { User, Briefcase, Loader2, Phone } from 'lucide-react';
 
 const CompleteProfile: React.FC = () => {
   const navigate = useNavigate();
@@ -19,6 +19,7 @@ const CompleteProfile: React.FC = () => {
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [fullName, setFullName] = useState('');
   const [jobTitle, setJobTitle] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
 
   useEffect(() => {
     if (!authLoading) {
@@ -35,21 +36,27 @@ const CompleteProfile: React.FC = () => {
 
     const { data }: any = await supabase
       .from('profiles' as any)
-      .select('full_name, job_title')
+      .select('full_name, job_title, phone_number')
       .eq('user_id', user.id)
       .single();
 
-    const profile = data as { full_name: string | null; job_title: string | null } | null;
+    const profile = data as { full_name: string | null; job_title: string | null; phone_number: string | null } | null;
 
-    // If profile already has job_title set, redirect to appropriate dashboard
-    if (profile?.job_title) {
+    // If profile already has job_title and phone_number set, redirect to appropriate dashboard
+    if (profile?.job_title && profile?.phone_number) {
       redirectToDashboard();
       return;
     }
 
-    // Pre-fill full name if available
+    // Pre-fill fields if available
     if (profile?.full_name) {
       setFullName(profile.full_name);
+    }
+    if (profile?.job_title) {
+      setJobTitle(profile.job_title);
+    }
+    if (profile?.phone_number) {
+      setPhoneNumber(profile.phone_number);
     }
 
     setCheckingProfile(false);
@@ -88,10 +95,10 @@ const CompleteProfile: React.FC = () => {
     e.preventDefault();
     
     if (!user) return;
-    if (!fullName.trim() || !jobTitle.trim()) {
+    if (!fullName.trim() || !jobTitle.trim() || !phoneNumber.trim()) {
       toast({
         title: "Please fill in all fields",
-        description: "Both name and job title are required.",
+        description: "Name, job title, and phone number are required.",
         variant: "destructive",
       });
       return;
@@ -104,6 +111,7 @@ const CompleteProfile: React.FC = () => {
       .update({
         full_name: fullName.trim(),
         job_title: jobTitle.trim(),
+        phone_number: phoneNumber.trim(),
         updated_at: new Date().toISOString(),
       } as any)
       .eq('user_id', user.id);
@@ -178,6 +186,24 @@ const CompleteProfile: React.FC = () => {
                   onChange={(e) => setJobTitle(e.target.value)}
                   required
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phoneNumber" className="flex items-center gap-2">
+                  <Phone size={16} className="text-muted-foreground" />
+                  Phone / WhatsApp Number *
+                </Label>
+                <Input
+                  id="phoneNumber"
+                  type="tel"
+                  placeholder="+1 234 567 8900"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  We'll send you WhatsApp/SMS notifications for booking updates.
+                </p>
               </div>
 
               <Button
