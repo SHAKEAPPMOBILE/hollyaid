@@ -87,8 +87,16 @@ serve(async (req) => {
       .setProtectedHeader({ alg: 'RS256', kid: apiKeyId, typ: 'JWT' })
       .sign(privateKey);
 
-    // Construct the meeting URL
-    const meetingUrl = `https://8x8.vc/${appId}/${roomName}?jwt=${jwt}`;
+    // Construct the meeting URL with config to skip prejoin screen
+    // Config options: https://jitsi.github.io/handbook/docs/dev-guide/dev-guide-iframe
+    const configParams = [
+      'config.prejoinPageEnabled=false',
+      'config.startWithAudioMuted=false',
+      'config.startWithVideoMuted=false',
+      'config.disableDeepLinking=true',
+    ].join('&');
+    
+    const meetingUrl = `https://8x8.vc/${appId}/${roomName}?jwt=${jwt}#${configParams}`;
 
     console.log('Token generated successfully for room:', roomName);
 
