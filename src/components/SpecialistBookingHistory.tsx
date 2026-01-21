@@ -35,7 +35,7 @@ const SpecialistBookingHistory: React.FC<SpecialistBookingHistoryProps> = ({
   }, [specialistId]);
 
   const fetchBookingHistory = async () => {
-    const { data, error } = await supabase
+    const { data: bookingsData, error: bookingsError } = await supabase
       .from('bookings')
       .select(`
         id,
@@ -46,15 +46,34 @@ const SpecialistBookingHistory: React.FC<SpecialistBookingHistoryProps> = ({
         created_at,
         session_duration,
         session_type,
-        employee:profiles!bookings_employee_user_id_fkey(email, full_name)
+        employee_user_id
       `)
       .eq('specialist_id', specialistId)
       .in('status', ['completed', 'cancelled', 'declined'])
       .order('created_at', { ascending: false });
 
-    if (!error && data) {
-      setBookings(data as unknown as Booking[]);
+    if (bookingsError || !bookingsData || bookingsData.length === 0) {
+      setBookings([]);
+      setLoading(false);
+      return;
     }
+
+    // Fetch employee profiles
+    const employeeIds = bookingsData.map(b => b.employee_user_id);
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('user_id, email, full_name')
+      .in('user_id', employeeIds);
+
+    const profilesMap = new Map(profilesData?.map(p => [p.user_id, p]) || []);
+
+    // Merge bookings with employee data
+    const enrichedBookings = bookingsData.map(booking => ({
+      ...booking,
+      employee: profilesMap.get(booking.employee_user_id) || null,
+    }));
+
+    setBookings(enrichedBookings as unknown as Booking[]);
     setLoading(false);
   };
 
