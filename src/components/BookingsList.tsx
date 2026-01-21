@@ -193,6 +193,20 @@ const BookingsList: React.FC = () => {
   const canCancel = (status: string) => status === 'pending' || status === 'approved';
   const canReschedule = (status: string) => status === 'approved';
   const canReview = (booking: Booking) => booking.status === 'completed' && !booking.has_review;
+  
+  // Check if meeting is currently in progress or starting soon (within 15 min before to session_duration after)
+  const isMeetingInProgress = (booking: Booking) => {
+    if (booking.status !== 'approved' || !booking.meeting_link) return false;
+    const meetingTime = booking.confirmed_datetime || booking.proposed_datetime;
+    if (!meetingTime) return false;
+    
+    const now = new Date();
+    const start = new Date(meetingTime);
+    const end = new Date(start.getTime() + (booking.session_duration || 60) * 60 * 1000);
+    const earlyJoinWindow = new Date(start.getTime() - 15 * 60 * 1000); // 15 min before
+    
+    return now >= earlyJoinWindow && now <= end;
+  };
 
   if (loading) {
     return <div className="space-y-4">{[1, 2, 3].map((i) => <Card key={i} className="animate-pulse"><CardContent className="p-6"><div className="h-24 bg-muted rounded" /></CardContent></Card>)}</div>;
@@ -208,13 +222,20 @@ const BookingsList: React.FC = () => {
         {bookings.map((booking) => {
           const displayDate = booking.confirmed_datetime || booking.proposed_datetime;
           return (
-            <Card key={booking.id} className="shadow-soft hover:shadow-wellness transition-shadow">
+            <Card key={booking.id} className={`shadow-soft hover:shadow-wellness transition-shadow ${isMeetingInProgress(booking) ? 'ring-2 ring-primary ring-offset-2 bg-primary/5' : ''}`}>
               <CardContent className="p-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="font-semibold text-lg">{booking.specialist?.full_name}</h3>
-                      {getStatusBadge(booking.status)}
+                      {isMeetingInProgress(booking) ? (
+                        <Badge className="bg-green-500 flex items-center gap-1 animate-pulse">
+                          <Video size={12} />
+                          Meeting In Progress
+                        </Badge>
+                      ) : (
+                        getStatusBadge(booking.status)
+                      )}
                       <Badge variant="outline" className={`text-xs ${booking.session_type === 'first_session' ? 'border-blue-300 text-blue-600' : 'border-green-300 text-green-600'}`}>
                         {booking.session_type === 'first_session' ? <><UserPlus size={10} className="mr-1" />First Session</> : <><Users size={10} className="mr-1" />Follow-up</>}
                       </Badge>
@@ -242,12 +263,13 @@ const BookingsList: React.FC = () => {
                     </Button>
                     {booking.status === 'approved' && booking.meeting_link && (
                       <Button 
-                        variant="wellness" 
-                        size="sm" 
+                        variant={isMeetingInProgress(booking) ? "default" : "wellness"}
+                        size={isMeetingInProgress(booking) ? "default" : "sm"}
                         onClick={() => setVideoCallBooking(booking)}
+                        className={isMeetingInProgress(booking) ? "animate-pulse bg-green-600 hover:bg-green-700" : ""}
                       >
                         <Video size={16} className="mr-1" />
-                        Join Meeting
+                        {isMeetingInProgress(booking) ? "Join Now" : "Join Meeting"}
                       </Button>
                     )}
                     {canReschedule(booking.status) && (
