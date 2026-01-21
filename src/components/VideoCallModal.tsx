@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Video, PhoneOff, Star, CheckCircle, Calendar, ArrowRight, Loader2 } from 'lucide-react';
@@ -24,14 +24,56 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 }) => {
   const [callState, setCallState] = useState<'in-call' | 'ended'>('in-call');
   const [iframeLoaded, setIframeLoaded] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Reset state when modal opens
+  // Listen for Jitsi postMessage events
+  const handleJitsiMessage = useCallback((event: MessageEvent) => {
+    // Jitsi sends messages from jit.si or 8x8.vc domains
+    const isJitsiOrigin = event.origin.includes('jit.si') || event.origin.includes('8x8.vc');
+    if (!isJitsiOrigin) return;
+
+    try {
+      const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      
+      // Log for debugging
+      console.log('Jitsi message received:', data);
+      
+      // Jitsi API events we care about:
+      // 'video-conference-left' - participant left the conference
+      // 'video-hangup' - user hung up
+      // 'readyToClose' - Jitsi is ready to close
+      // 'participant-left' - a participant left (might be the only one)
+      const eventName = data.event || data.name || data.type || '';
+      
+      if (
+        eventName === 'video-conference-left' ||
+        eventName === 'video-hangup' ||
+        eventName === 'readyToClose' ||
+        eventName === 'videoConferenceLeft' ||
+        eventName === 'hangup'
+      ) {
+        console.log('Jitsi call ended:', eventName);
+        setCallState('ended');
+      }
+    } catch (e) {
+      // Not a JSON message or parsing error, ignore
+    }
+  }, []);
+
+  // Reset state when modal opens and set up event listeners
   useEffect(() => {
     if (open) {
       setCallState('in-call');
       setIframeLoaded(false);
+      
+      // Listen for postMessage events from Jitsi
+      window.addEventListener('message', handleJitsiMessage);
+      
+      return () => {
+        window.removeEventListener('message', handleJitsiMessage);
+      };
     }
-  }, [open]);
+  }, [open, handleJitsiMessage]);
 
   const handleEndCall = () => {
     setCallState('ended');
@@ -81,6 +123,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
                 </div>
               )}
               <iframe
+                ref={iframeRef}
                 src={meetingLink}
                 className="w-full h-full border-0"
                 allow="camera; microphone; fullscreen; display-capture; autoplay"
