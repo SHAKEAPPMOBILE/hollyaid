@@ -21,6 +21,9 @@ verify_jwt = false
 [functions.notify-specialist-booking]
 verify_jwt = false
 
+[functions.notify-booking-decline]
+verify_jwt = false
+
 [functions.complete-booking]
 verify_jwt = false
 
