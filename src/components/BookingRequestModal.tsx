@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Clock, Send } from 'lucide-react';
+import { Calendar, Clock, Send, Globe } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 
 // Generate time slots with 15-minute increments
@@ -71,6 +71,19 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ specialist, o
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [isFirstSession, setIsFirstSession] = useState<boolean | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Get timezone info
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timezoneAbbr = new Date().toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop();
 
   // Check if this is the first session with this specialist
   React.useEffect(() => {
@@ -173,6 +186,17 @@ const BookingRequestModal: React.FC<BookingRequestModalProps> = ({ specialist, o
 
   return (
     <div className="space-y-6">
+      {/* Timezone indicator */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
+        <Globe size={16} className="text-primary" />
+        <span>
+          Your timezone: <span className="font-medium text-foreground">{timezone}</span> ({timezoneAbbr})
+        </span>
+        <span className="ml-auto font-mono text-foreground">
+          {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        </span>
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Date/Time Selection */}
         <div className="space-y-4">
