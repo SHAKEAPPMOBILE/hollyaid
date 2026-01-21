@@ -47,6 +47,7 @@ const Settings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -308,18 +309,46 @@ const Settings: React.FC = () => {
     }
 
     setUploadingVideo(true);
+    setVideoUploadProgress(0);
 
     try {
       // Create a unique filename
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/intro-${Date.now()}.${fileExt}`;
 
-      // Upload to storage
-      const { error: uploadError } = await supabase.storage
-        .from('specialist-videos')
-        .upload(fileName, file, { upsert: true });
+      // Get session for auth header
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
 
-      if (uploadError) throw uploadError;
+      // Upload with progress tracking using XMLHttpRequest
+      const uploadUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/specialist-videos/${fileName}`;
+      
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            const percentComplete = Math.round((event.loaded / event.total) * 100);
+            setVideoUploadProgress(percentComplete);
+          }
+        });
+        
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`Upload failed with status ${xhr.status}`));
+          }
+        });
+        
+        xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+        xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+        
+        xhr.open('POST', uploadUrl);
+        xhr.setRequestHeader('Authorization', `Bearer ${session.access_token}`);
+        xhr.setRequestHeader('x-upsert', 'true');
+        xhr.send(file);
+      });
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
@@ -349,6 +378,7 @@ const Settings: React.FC = () => {
       });
     } finally {
       setUploadingVideo(false);
+      setVideoUploadProgress(0);
       if (videoInputRef.current) {
         videoInputRef.current.value = '';
       }
@@ -745,13 +775,50 @@ const Settings: React.FC = () => {
                   </div>
                 ) : (
                   <div 
-                    className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                    onClick={handleVideoClick}
+                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                      uploadingVideo 
+                        ? 'border-primary/50 bg-primary/5' 
+                        : 'border-muted-foreground/25 cursor-pointer hover:border-primary/50'
+                    }`}
+                    onClick={!uploadingVideo ? handleVideoClick : undefined}
                   >
                     {uploadingVideo ? (
-                      <div className="flex flex-col items-center gap-2">
-                        <Loader2 size={32} className="animate-spin text-primary" />
-                        <p className="text-sm text-muted-foreground">Uploading video...</p>
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="relative w-16 h-16">
+                          <svg className="w-16 h-16 transform -rotate-90">
+                            <circle
+                              cx="32"
+                              cy="32"
+                              r="28"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                              fill="none"
+                              className="text-muted"
+                            />
+                            <circle
+                              cx="32"
+                              cy="32"
+                              r="28"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                              fill="none"
+                              className="text-primary"
+                              strokeDasharray={`${2 * Math.PI * 28}`}
+                              strokeDashoffset={`${2 * Math.PI * 28 * (1 - videoUploadProgress / 100)}`}
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                          <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-primary">
+                            {videoUploadProgress}%
+                          </span>
+                        </div>
+                        <p className="text-sm font-medium text-foreground">Uploading video...</p>
+                        <div className="w-full max-w-xs bg-muted rounded-full h-2 overflow-hidden">
+                          <div 
+                            className="h-full bg-primary transition-all duration-300 ease-out"
+                            style={{ width: `${videoUploadProgress}%` }}
+                          />
+                        </div>
                       </div>
                     ) : (
                       <>
