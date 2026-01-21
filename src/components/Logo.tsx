@@ -32,7 +32,7 @@ const Logo: React.FC<LogoProps> = ({ size = 'md', className = '', clickable = tr
     <img 
       src={hollyaidLogo} 
       alt="Hollyaid" 
-      className={`${sizes[size]} w-auto ${clickable ? 'cursor-pointer' : ''} ${className}`}
+      className={`${sizes[size]} w-auto transition-transform duration-200 ${clickable ? 'cursor-pointer hover:scale-105' : ''} ${className}`}
       onClick={handleClick}
     />
   );
