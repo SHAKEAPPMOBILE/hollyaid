@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,32 +9,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Phone, Bell, Save, Loader2, User, Briefcase, Building2 } from 'lucide-react';
+import { ArrowLeft, Phone, Bell, Save, Loader2, User, Briefcase, Building2, Camera, X } from 'lucide-react';
 
 type NotificationPreference = 'email' | 'whatsapp' | 'both';
-
-interface ProfileData {
-  full_name: string;
-  email: string;
-  phone_number: string;
-  job_title: string;
-  department: string;
-  notification_preference: NotificationPreference;
-}
-
-interface SpecialistData {
-  full_name: string;
-  email: string;
-  phone_number: string;
-  specialty: string;
-  bio: string;
-}
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Profile fields
   const [fullName, setFullName] = useState('');
@@ -42,6 +27,7 @@ const Settings: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [department, setDepartment] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [notificationPreference, setNotificationPreference] = useState<NotificationPreference>('both');
 
   // Specialist-specific fields
@@ -49,9 +35,11 @@ const Settings: React.FC = () => {
   const [specialistId, setSpecialistId] = useState<string | null>(null);
   const [specialty, setSpecialty] = useState('');
   const [bio, setBio] = useState('');
+  const [specialistAvatarUrl, setSpecialistAvatarUrl] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -71,7 +59,7 @@ const Settings: React.FC = () => {
       // Fetch profile data
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('full_name, email, phone_number, job_title, department, notification_preference')
+        .select('full_name, email, phone_number, job_title, department, avatar_url, notification_preference')
         .eq('user_id', user.id)
         .single();
 
@@ -83,13 +71,14 @@ const Settings: React.FC = () => {
         setPhoneNumber(profileData.phone_number || '');
         setJobTitle(profileData.job_title || '');
         setDepartment(profileData.department || '');
+        setAvatarUrl(profileData.avatar_url || null);
         setNotificationPreference((profileData.notification_preference as NotificationPreference) || 'both');
       }
 
       // Check if user is a specialist
       const { data: specialistData } = await supabase
         .from('specialists')
-        .select('id, full_name, email, phone_number, specialty, bio')
+        .select('id, full_name, email, phone_number, specialty, bio, avatar_url')
         .eq('user_id', user.id)
         .single();
 
@@ -101,11 +90,148 @@ const Settings: React.FC = () => {
         setPhoneNumber(specialistData.phone_number || profileData?.phone_number || '');
         setSpecialty(specialistData.specialty || '');
         setBio(specialistData.bio || '');
+        setSpecialistAvatarUrl(specialistData.avatar_url || null);
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload an image file (JPG, PNG, etc.)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload an image smaller than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingAvatar(true);
+
+    try {
+      // Create a unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/avatar-${Date.now()}.${fileExt}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl, updated_at: new Date().toISOString() })
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
+      // If specialist, also update specialist avatar
+      if (isSpecialist && specialistId) {
+        await supabase
+          .from('specialists')
+          .update({ avatar_url: publicUrl, updated_at: new Date().toISOString() })
+          .eq('id', specialistId);
+        setSpecialistAvatarUrl(publicUrl);
+      }
+
+      setAvatarUrl(publicUrl);
+
+      toast({
+        title: "Photo updated",
+        description: "Your profile photo has been updated successfully.",
+      });
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload photo. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingAvatar(false);
+      // Reset the input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!user) return;
+
+    setUploadingAvatar(true);
+
+    try {
+      // Update profile to remove avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: null, updated_at: new Date().toISOString() })
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
+      // If specialist, also update specialist avatar
+      if (isSpecialist && specialistId) {
+        await supabase
+          .from('specialists')
+          .update({ avatar_url: null, updated_at: new Date().toISOString() })
+          .eq('id', specialistId);
+        setSpecialistAvatarUrl(null);
+      }
+
+      setAvatarUrl(null);
+
+      toast({
+        title: "Photo removed",
+        description: "Your profile photo has been removed.",
+      });
+    } catch (error) {
+      console.error('Error removing avatar:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove photo. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingAvatar(false);
     }
   };
 
@@ -190,6 +316,8 @@ const Settings: React.FC = () => {
     );
   }
 
+  const displayAvatarUrl = isSpecialist ? (specialistAvatarUrl || avatarUrl) : avatarUrl;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -211,6 +339,69 @@ const Settings: React.FC = () => {
         </div>
 
         <div className="space-y-6">
+          {/* Profile Photo Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Camera size={20} />
+                Profile Photo
+              </CardTitle>
+              <CardDescription>
+                Upload a photo to personalize your profile
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-6">
+                <div className="relative">
+                  <Avatar className="w-24 h-24 border-2 border-border">
+                    <AvatarImage src={displayAvatarUrl || undefined} alt={fullName} />
+                    <AvatarFallback className="text-2xl bg-primary/10 text-primary">
+                      {getInitials(fullName || 'U')}
+                    </AvatarFallback>
+                  </Avatar>
+                  {uploadingAvatar && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-full">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarUpload}
+                    className="hidden"
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleAvatarClick}
+                    disabled={uploadingAvatar}
+                  >
+                    <Camera size={16} />
+                    {displayAvatarUrl ? 'Change Photo' : 'Upload Photo'}
+                  </Button>
+                  {displayAvatarUrl && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={handleRemoveAvatar}
+                      disabled={uploadingAvatar}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <X size={16} />
+                      Remove
+                    </Button>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    JPG, PNG or GIF. Max 5MB.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Personal Information Card */}
           <Card>
             <CardHeader>
