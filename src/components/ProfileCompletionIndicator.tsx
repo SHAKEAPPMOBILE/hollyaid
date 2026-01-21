@@ -144,8 +144,8 @@ const ProfileCompletionIndicator: React.FC<ProfileCompletionIndicatorProps> = ({
     let fields = [...PROFILE_FIELDS];
     
     if (isSpecialist) {
-      // Specialists don't need job_title
-      fields = fields.filter(f => f.key !== 'job_title');
+      // Specialists don't need job_title or department
+      fields = fields.filter(f => f.key !== 'job_title' && f.key !== 'department');
       fields.push(
         { key: 'bio', label: 'Bio', required: false },
       );
