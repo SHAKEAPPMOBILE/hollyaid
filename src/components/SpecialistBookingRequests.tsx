@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Clock, CheckCircle, XCircle, MessageCircle, User, UserPlus, Users, Video } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, XCircle, MessageCircle, User, UserPlus, Users, Video, CalendarPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import BookingConversation from './BookingConversation';
@@ -45,6 +45,7 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
   const [processing, setProcessing] = useState<string | null>(null);
   const [bookingToComplete, setBookingToComplete] = useState<Booking | null>(null);
   const [videoCallBooking, setVideoCallBooking] = useState<Booking | null>(null);
+  const [calendarBooking, setCalendarBooking] = useState<Booking | null>(null);
 
   // Track unread messages
   const bookingIds = useMemo(() => bookings.map(b => b.id), [bookings]);
@@ -129,6 +130,97 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
     return roomId;
   };
 
+  // Generate ICS file content for calendar
+  const generateICSContent = (booking: Booking, meetingLink: string): string => {
+    const startDate = new Date(booking.proposed_datetime!);
+    const endDate = new Date(startDate.getTime() + booking.session_duration * 60 * 1000);
+    
+    const formatICSDate = (date: Date): string => {
+      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+
+    const escapeICSText = (text: string): string => {
+      return text.replace(/[\\;,\n]/g, (match) => {
+        if (match === '\n') return '\\n';
+        return '\\' + match;
+      });
+    };
+
+    const now = new Date();
+    const employeeName = booking.employee?.full_name || booking.employee?.email || 'Employee';
+    
+    return `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//HollyAid//Booking System//EN
+CALSCALE:GREGORIAN
+METHOD:REQUEST
+BEGIN:VEVENT
+UID:booking-${booking.id}@hollyaid.com
+DTSTAMP:${formatICSDate(now)}
+DTSTART:${formatICSDate(startDate)}
+DTEND:${formatICSDate(endDate)}
+SUMMARY:${escapeICSText(`HollyAid Session with ${employeeName}`)}
+DESCRIPTION:${escapeICSText(`Wellness session with ${employeeName}\\n\\nMeeting Room: ${meetingLink}\\n\\n${booking.notes ? `Notes: ${booking.notes}` : ''}`)}
+LOCATION:${escapeICSText('Online - HollyAid')}
+STATUS:CONFIRMED
+SEQUENCE:0
+BEGIN:VALARM
+TRIGGER:-PT15M
+ACTION:DISPLAY
+DESCRIPTION:Reminder: Session with ${escapeICSText(employeeName)}
+END:VALARM
+END:VEVENT
+END:VCALENDAR`;
+  };
+
+  // Generate Google Calendar URL
+  const generateGoogleCalendarUrl = (booking: Booking, meetingLink: string): string => {
+    const startDate = new Date(booking.proposed_datetime!);
+    const endDate = new Date(startDate.getTime() + booking.session_duration * 60 * 1000);
+    const employeeName = booking.employee?.full_name || booking.employee?.email || 'Employee';
+    
+    const formatGoogleDate = (date: Date): string => {
+      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+
+    const params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: `HollyAid Session with ${employeeName}`,
+      dates: `${formatGoogleDate(startDate)}/${formatGoogleDate(endDate)}`,
+      details: `Wellness session with ${employeeName}\n\nMeeting Room: ${meetingLink}${booking.notes ? `\n\nNotes: ${booking.notes}` : ''}`,
+      location: 'Online - HollyAid',
+    });
+
+    return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  };
+
+  // Download ICS file
+  const downloadICSFile = (booking: Booking, meetingLink: string) => {
+    const icsContent = generateICSContent(booking, meetingLink);
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `hollyaid-session-${format(new Date(booking.proposed_datetime!), 'yyyy-MM-dd')}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Calendar file downloaded",
+      description: "Open the file to add to your calendar app.",
+    });
+    setCalendarBooking(null);
+  };
+
+  // Open Google Calendar
+  const openGoogleCalendar = (booking: Booking, meetingLink: string) => {
+    const url = generateGoogleCalendarUrl(booking, meetingLink);
+    window.open(url, '_blank');
+    setCalendarBooking(null);
+  };
+
   const handleAccept = async (booking: Booking) => {
     setProcessing(booking.id);
     
@@ -159,9 +251,13 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
         console.error('Email notification failed:', emailError);
       }
       
+      // Update booking with meeting link for calendar dialog
+      const updatedBooking = { ...booking, meeting_link: meetingLink };
+      setCalendarBooking(updatedBooking);
+      
       toast({
         title: "Booking accepted",
-        description: "The employee will receive a confirmation with the meeting link.",
+        description: "The employee will receive a confirmation with calendar invite.",
       });
       fetchBookings();
       onBookingUpdate?.();
@@ -456,6 +552,70 @@ const SpecialistBookingRequests: React.FC<SpecialistBookingRequestsProps> = ({
           }}
         />
       )}
+
+      {/* Add to Calendar Dialog */}
+      <Dialog open={!!calendarBooking} onOpenChange={(open) => !open && setCalendarBooking(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarPlus className="text-primary" size={24} />
+              Add to Your Calendar
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-muted-foreground">
+              The employee has received a calendar invite. Would you like to add this session to your calendar as well?
+            </p>
+            
+            {calendarBooking && (
+              <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+                <p className="font-medium">
+                  Session with {calendarBooking.employee?.full_name || calendarBooking.employee?.email || 'Employee'}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {calendarBooking.proposed_datetime && format(new Date(calendarBooking.proposed_datetime), 'EEEE, MMMM d, yyyy')}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {calendarBooking.proposed_datetime && format(new Date(calendarBooking.proposed_datetime), 'h:mm a')} ({calendarBooking.session_duration} min)
+                </p>
+              </div>
+            )}
+
+            <div className="grid gap-3">
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 h-12"
+                onClick={() => calendarBooking && openGoogleCalendar(calendarBooking, calendarBooking.meeting_link || '')}
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Add to Google Calendar
+              </Button>
+              
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 h-12"
+                onClick={() => calendarBooking && downloadICSFile(calendarBooking, calendarBooking.meeting_link || '')}
+              >
+                <Calendar className="w-5 h-5 text-muted-foreground" />
+                Download .ics file (Apple, Outlook, etc.)
+              </Button>
+            </div>
+
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => setCalendarBooking(null)}
+            >
+              Skip for now
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
