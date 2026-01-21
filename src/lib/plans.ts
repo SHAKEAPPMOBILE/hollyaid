@@ -72,7 +72,7 @@ export type SpecialistTier = keyof typeof SPECIALIST_TIERS;
 export const PLANS = Object.values(WELLNESS_PLANS);
 
 // Test account domains that bypass Stripe payment
-export const TEST_ACCOUNT_DOMAINS = ['hollyaid.com', 'shakeapp.today'];
+export const TEST_ACCOUNT_DOMAINS = ['hollyaid.com', 'shakeapp.today', 'aptw.us'];
 
 export const isTestAccountEmail = (email: string): boolean => {
   const domain = email.split('@')[1]?.toLowerCase();

@@ -24,7 +24,7 @@ const PLANS = {
 };
 
 // Test account domains
-const TEST_DOMAINS = ["hollyaid.com", "shakeapp.today"];
+const TEST_DOMAINS = ["hollyaid.com", "shakeapp.today", "aptw.us"];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
