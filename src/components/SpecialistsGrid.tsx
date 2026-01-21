@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Calendar, Clock, Star, Filter, X, MessageCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import BookingRequestModal from './BookingRequestModal';
+import BookingConversation from './BookingConversation';
 import SpecialistProfileModal from './SpecialistProfileModal';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,6 +25,7 @@ interface Specialist {
 }
 
 interface ActiveBooking {
+  id: string;
   specialist_id: string;
   proposed_datetime: string | null;
   confirmed_datetime: string | null;
@@ -59,6 +61,8 @@ const SpecialistsGrid: React.FC = () => {
   const [selectedSpecialist, setSelectedSpecialist] = useState<Specialist | null>(null);
   const [profileSpecialist, setProfileSpecialist] = useState<Specialist | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [conversationBookingId, setConversationBookingId] = useState<string | null>(null);
+  const [conversationSpecialistName, setConversationSpecialistName] = useState<string>('');
   const [specialtyFilter, setSpecialtyFilter] = useState<string>('all');
   const [ratingFilter, setRatingFilter] = useState<string>('all');
 
@@ -70,14 +74,18 @@ const SpecialistsGrid: React.FC = () => {
   }, [user]);
 
   // Check if specialist has an active conversation (booking with future datetime)
-  const hasActiveConversation = (specialistId: string): boolean => {
+  const getActiveBooking = (specialistId: string): ActiveBooking | null => {
     const now = new Date();
-    return activeBookings.some(booking => {
+    return activeBookings.find(booking => {
       if (booking.specialist_id !== specialistId) return false;
       const bookingTime = booking.confirmed_datetime || booking.proposed_datetime;
       if (!bookingTime) return false;
       return new Date(bookingTime) > now;
-    });
+    }) || null;
+  };
+
+  const hasActiveConversation = (specialistId: string): boolean => {
+    return getActiveBooking(specialistId) !== null;
   };
 
   const fetchActiveBookings = async () => {
@@ -85,7 +93,7 @@ const SpecialistsGrid: React.FC = () => {
     
     const { data } = await supabase
       .from('bookings')
-      .select('specialist_id, proposed_datetime, confirmed_datetime')
+      .select('id, specialist_id, proposed_datetime, confirmed_datetime')
       .eq('employee_user_id', user.id)
       .in('status', ['pending', 'approved']);
     
@@ -180,6 +188,15 @@ const SpecialistsGrid: React.FC = () => {
     e?.stopPropagation();
     setSelectedSpecialist(specialist);
     setShowBookingModal(true);
+  };
+
+  const handleOpenConversation = (specialist: Specialist, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const activeBooking = getActiveBooking(specialist.id);
+    if (activeBooking) {
+      setConversationBookingId(activeBooking.id);
+      setConversationSpecialistName(specialist.full_name);
+    }
   };
 
   if (loading) {
@@ -342,7 +359,7 @@ const SpecialistsGrid: React.FC = () => {
                     variant={isActive ? "secondary" : "wellness"} 
                     size="sm"
                     className={isActive ? "bg-white text-emerald-600 hover:bg-white/90" : ""}
-                    onClick={(e) => handleBookNow(specialist, e)}
+                    onClick={(e) => isActive ? handleOpenConversation(specialist, e) : handleBookNow(specialist, e)}
                   >
                     {isActive ? <MessageCircle size={16} /> : <Calendar size={16} />}
                     {isActive ? "Message" : "Book Now"}
@@ -378,6 +395,21 @@ const SpecialistsGrid: React.FC = () => {
                 setShowBookingModal(false);
                 setSelectedSpecialist(null);
               }} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Conversation Modal */}
+      <Dialog open={!!conversationBookingId} onOpenChange={(open) => !open && setConversationBookingId(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Conversation with {conversationSpecialistName}</DialogTitle>
+          </DialogHeader>
+          {conversationBookingId && (
+            <BookingConversation 
+              bookingId={conversationBookingId}
+              userType="employee"
             />
           )}
         </DialogContent>
