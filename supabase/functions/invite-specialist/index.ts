@@ -41,6 +41,12 @@ serve(async (req) => {
       throw new Error("Only admins can invite specialists");
     }
 
+    // Restrict invitations to specific email addresses only
+    const ALLOWED_INVITE_EMAILS = ['info@hollyaid.com', 'contact@shakeapp.today'];
+    if (!ALLOWED_INVITE_EMAILS.includes(user.email?.toLowerCase() || '')) {
+      throw new Error("You are not authorized to invite specialists");
+    }
+
     const { specialistId } = await req.json();
     if (!specialistId) throw new Error("Specialist ID is required");
 
