@@ -31,6 +31,9 @@ interface Specialist {
   rate_tier: string | null;
 }
 
+// Only these emails can invite specialists
+const ALLOWED_INVITE_EMAILS = ['info@hollyaid.com', 'contact@shakeapp.today'];
+
 const Admin: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -51,6 +54,9 @@ const Admin: React.FC = () => {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Check if current user can invite specialists
+  const canInviteSpecialists = user?.email && ALLOWED_INVITE_EMAILS.includes(user.email.toLowerCase());
 
   useEffect(() => {
     if (!authLoading) {
@@ -469,22 +475,26 @@ const Admin: React.FC = () => {
                         />
                       </TableCell>
                       <TableCell className="text-right space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={async () => {
-                            const { data, error } = await supabase.functions.invoke('invite-specialist', {
-                              body: { specialistId: specialist.id }
-                            });
-                            if (error) {
-                              toast({ title: "Failed to send invitation", description: error.message, variant: "destructive" });
-                            } else {
-                              toast({ title: "Invitation sent!", description: data.invitationLink ? `Link: ${data.invitationLink}` : data.message });
-                            }
-                          }}
-                        >
-                          Invite
-                        </Button>
+                        {canInviteSpecialists && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              const { data, error } = await supabase.functions.invoke('invite-specialist', {
+                                body: { specialistId: specialist.id }
+                              });
+                              if (error) {
+                                toast({ title: "Failed to send invitation", description: error.message, variant: "destructive" });
+                              } else {
+                                toast({ title: "Invitation sent!", description: data.invitationLink ? `Link: ${data.invitationLink}` : data.message });
+                              }
+                            }}
+                            disabled={!!specialist.user_id}
+                          >
+                            <UserPlus size={14} />
+                            {specialist.user_id ? 'Registered' : 'Invite'}
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
