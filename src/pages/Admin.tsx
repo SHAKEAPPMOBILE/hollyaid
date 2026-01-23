@@ -104,7 +104,7 @@ const Admin: React.FC = () => {
     }
   };
 
-  // Log admin activity
+  // Log admin activity and send notifications for critical actions
   const logActivity = async (
     actionType: string,
     targetType: string,
@@ -114,6 +114,7 @@ const Admin: React.FC = () => {
   ) => {
     if (!user) return;
     
+    // Log to database
     await supabase.from('admin_activity_logs').insert({
       admin_user_id: user.id,
       admin_email: user.email || 'unknown',
@@ -123,6 +124,24 @@ const Admin: React.FC = () => {
       target_name: targetName,
       details: details || null,
     });
+
+    // Send email notification for critical actions
+    const criticalActions = ['delete', 'deactivate'];
+    if (criticalActions.includes(actionType)) {
+      try {
+        await supabase.functions.invoke('notify-admin-action', {
+          body: {
+            actionType: `${actionType}_${targetType}`,
+            targetType,
+            targetName,
+            adminEmail: user.email || 'unknown',
+            details,
+          },
+        });
+      } catch (error) {
+        console.error('Failed to send admin action notification:', error);
+      }
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
