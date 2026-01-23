@@ -17,6 +17,7 @@ import {
   ArrowLeft, Plus, Users, Building2, Calendar, 
   Edit, Trash2, UserPlus, Clock, Upload, X
 } from 'lucide-react';
+import AdminActivityLog from '@/components/AdminActivityLog';
 
 interface Specialist {
   id: string;
@@ -103,6 +104,27 @@ const Admin: React.FC = () => {
     }
   };
 
+  // Log admin activity
+  const logActivity = async (
+    actionType: string,
+    targetType: string,
+    targetId: string | null,
+    targetName: string | null,
+    details?: Record<string, any>
+  ) => {
+    if (!user) return;
+    
+    await supabase.from('admin_activity_logs').insert({
+      admin_user_id: user.id,
+      admin_email: user.email || 'unknown',
+      action_type: actionType,
+      target_type: targetType,
+      target_id: targetId,
+      target_name: targetName,
+      details: details || null,
+    });
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -159,7 +181,7 @@ const Admin: React.FC = () => {
       avatarUrl = urlData.publicUrl;
     }
 
-    const { error } = await supabase
+    const { data: insertedData, error } = await supabase
       .from('specialists')
       .insert({
         full_name: fullName,
@@ -169,7 +191,9 @@ const Admin: React.FC = () => {
         hourly_rate: 25, // Placeholder, specialist will set their tier on signup
         is_active: false, // Inactive until specialist completes signup
         avatar_url: avatarUrl,
-      });
+      })
+      .select()
+      .single();
 
     if (error) {
       toast({
@@ -178,6 +202,9 @@ const Admin: React.FC = () => {
         variant: "destructive",
       });
     } else {
+      // Log the add action
+      await logActivity('add', 'specialist', insertedData?.id || null, fullName, { email, specialty });
+      
       toast({
         title: "Specialist added",
         description: `${fullName} has been added to the platform.`,
@@ -190,13 +217,21 @@ const Admin: React.FC = () => {
     setSubmitting(false);
   };
 
-  const toggleSpecialistStatus = async (id: string, currentStatus: boolean) => {
+  const toggleSpecialistStatus = async (id: string, currentStatus: boolean, specialistName: string) => {
     const { error } = await supabase
       .from('specialists')
       .update({ is_active: !currentStatus })
       .eq('id', id);
 
     if (!error) {
+      // Log the action
+      await logActivity(
+        currentStatus ? 'deactivate' : 'activate',
+        'specialist',
+        id,
+        specialistName
+      );
+      
       fetchSpecialists();
       toast({
         title: currentStatus ? "Specialist deactivated" : "Specialist activated",
@@ -204,13 +239,16 @@ const Admin: React.FC = () => {
     }
   };
 
-  const deleteSpecialist = async (id: string) => {
+  const deleteSpecialist = async (id: string, specialistName: string) => {
     const { error } = await supabase
       .from('specialists')
       .delete()
       .eq('id', id);
 
     if (!error) {
+      // Log the delete action
+      await logActivity('delete', 'specialist', id, specialistName);
+      
       fetchSpecialists();
       toast({
         title: "Specialist removed",
@@ -471,7 +509,7 @@ const Admin: React.FC = () => {
                       <TableCell>
                         <Switch
                           checked={specialist.is_active}
-                          onCheckedChange={() => toggleSpecialistStatus(specialist.id, specialist.is_active)}
+                          onCheckedChange={() => toggleSpecialistStatus(specialist.id, specialist.is_active, specialist.full_name)}
                         />
                       </TableCell>
                       <TableCell className="text-right space-x-2">
@@ -486,6 +524,8 @@ const Admin: React.FC = () => {
                               if (error) {
                                 toast({ title: "Failed to send invitation", description: error.message, variant: "destructive" });
                               } else {
+                                // Log the invite action
+                                await logActivity('invite', 'specialist', specialist.id, specialist.full_name, { email: specialist.email });
                                 toast({ title: "Invitation sent!", description: data.invitationLink ? `Link: ${data.invitationLink}` : data.message });
                               }
                             }}
@@ -499,7 +539,7 @@ const Admin: React.FC = () => {
                           variant="ghost"
                           size="sm"
                           className="text-destructive"
-                          onClick={() => deleteSpecialist(specialist.id)}
+                          onClick={() => deleteSpecialist(specialist.id, specialist.full_name)}
                         >
                           <Trash2 size={16} />
                         </Button>
@@ -511,6 +551,13 @@ const Admin: React.FC = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Activity Log - only visible to authorized emails */}
+        {canInviteSpecialists && (
+          <div className="mt-8">
+            <AdminActivityLog />
+          </div>
+        )}
       </main>
     </div>
   );
