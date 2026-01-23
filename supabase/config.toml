@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.generate-jaas-token]
 verify_jwt = false
+
+[functions.notify-admin-action]
+verify_jwt = false
