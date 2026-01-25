@@ -72,14 +72,18 @@ const Admin: React.FC = () => {
   const checkAdminAccess = async () => {
     if (!user) return;
 
+    // Check for admin role in database
     const { data } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
       .eq('role', 'admin')
-      .single();
+      .maybeSingle();
 
-    if (data) {
+    // Platform admins (fallback for designated emails)
+    const isPlatformAdmin = user.email && ALLOWED_INVITE_EMAILS.includes(user.email.toLowerCase());
+
+    if (data || isPlatformAdmin) {
       setIsAdmin(true);
       fetchSpecialists();
     } else {
