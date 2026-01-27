@@ -35,6 +35,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ company }) => {
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
+  const [invitingAll, setInvitingAll] = useState(false);
   const [employeeToRemove, setEmployeeToRemove] = useState<Employee | null>(null);
   const [removing, setRemoving] = useState(false);
 
@@ -116,6 +117,44 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ company }) => {
     }
 
     setInviting(false);
+  };
+
+  const handleInviteAll = async () => {
+    const pendingEmployees = employees.filter(e => e.status === 'invited');
+    
+    if (pendingEmployees.length === 0) {
+      toast({
+        title: "No pending invitations",
+        description: "All employees have already accepted their invitations.",
+      });
+      return;
+    }
+
+    setInvitingAll(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const employee of pendingEmployees) {
+      try {
+        await supabase.functions.invoke('send-employee-invite', {
+          body: { 
+            employeeEmail: employee.email,
+            companyId: company.id
+          }
+        });
+        successCount++;
+      } catch (error) {
+        console.error('Failed to send invitation to:', employee.email, error);
+        failCount++;
+      }
+    }
+
+    toast({
+      title: "Invitations sent",
+      description: `${successCount} invitation${successCount !== 1 ? 's' : ''} sent${failCount > 0 ? `, ${failCount} failed` : ''}.`,
+    });
+
+    setInvitingAll(false);
   };
 
   const handleRemoveEmployee = async () => {
@@ -240,11 +279,24 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ company }) => {
 
       {/* Employee List */}
       <Card>
-        <CardHeader>
-          <CardTitle>Invited Employees</CardTitle>
-          <CardDescription>
-            {employees.length} of {company.max_employees} employee slots used
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Invited Employees</CardTitle>
+            <CardDescription>
+              {employees.length} of {company.max_employees} employee slots used
+            </CardDescription>
+          </div>
+          {employees.filter(e => e.status === 'invited').length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleInviteAll}
+              disabled={invitingAll}
+            >
+              <Mail size={16} />
+              {invitingAll ? 'Sending...' : `Resend All (${employees.filter(e => e.status === 'invited').length})`}
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {loading ? (
