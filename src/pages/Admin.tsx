@@ -12,9 +12,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   ArrowLeft, Plus, Users, 
-  Edit, Trash2, UserPlus, Clock, CheckCircle, XCircle, Search
+  Edit, Trash2, UserPlus, Clock, CheckCircle, XCircle, Search,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,6 +62,8 @@ const Admin: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Filter specialists based on search query
   const filteredSpecialists = specialists.filter(s => {
@@ -71,6 +75,16 @@ const Admin: React.FC = () => {
       s.email.toLowerCase().includes(query)
     );
   });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredSpecialists.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedSpecialists = filteredSpecialists.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
   
   // Check if current user can invite specialists
   const canInviteSpecialists = user?.email && ALLOWED_INVITE_EMAILS.includes(user.email.toLowerCase());
@@ -419,6 +433,7 @@ const Admin: React.FC = () => {
                 </p>
               </div>
             ) : (
+              <>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -438,7 +453,7 @@ const Admin: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredSpecialists.map((specialist) => (
+                  {paginatedSpecialists.map((specialist) => (
                     <TableRow key={specialist.id} data-selected={selectedIds.has(specialist.id)}>
                       <TableCell>
                         <Checkbox
@@ -537,6 +552,58 @@ const Admin: React.FC = () => {
                   ))}
                 </TableBody>
               </Table>
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredSpecialists.length)} of {filteredSpecialists.length} specialists
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft size={16} />
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter(page => {
+                          // Show first, last, and pages around current
+                          return page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
+                        })
+                        .map((page, idx, arr) => (
+                          <React.Fragment key={page}>
+                            {idx > 0 && arr[idx - 1] !== page - 1 && (
+                              <span className="px-1 text-muted-foreground">...</span>
+                            )}
+                            <Button
+                              variant={currentPage === page ? "default" : "outline"}
+                              size="sm"
+                              className="w-8 h-8 p-0"
+                              onClick={() => setCurrentPage(page)}
+                            >
+                              {page}
+                            </Button>
+                          </React.Fragment>
+                        ))}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                      <ChevronRight size={16} />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
             )}
           </CardContent>
         </Card>
