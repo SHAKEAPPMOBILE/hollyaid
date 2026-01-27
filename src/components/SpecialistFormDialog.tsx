@@ -6,8 +6,18 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, X } from 'lucide-react';
+
+type RateTier = 'standard' | 'advanced' | 'expert' | 'master';
+
+const RATE_TIER_CONFIG: Record<RateTier, { label: string; minuteCost: number; hourlyRate: number }> = {
+  standard: { label: 'Standard', minuteCost: 60, hourlyRate: 60 },
+  advanced: { label: 'Advanced', minuteCost: 96, hourlyRate: 96 },
+  expert: { label: 'Expert', minuteCost: 144, hourlyRate: 144 },
+  master: { label: 'Master', minuteCost: 192, hourlyRate: 192 },
+};
 
 interface Specialist {
   id: string;
@@ -17,6 +27,9 @@ interface Specialist {
   bio: string | null;
   avatar_url: string | null;
   website?: string | null;
+  rate_tier?: string | null;
+  hourly_rate?: number;
+  user_id?: string | null;
 }
 
 interface SpecialistFormDialogProps {
@@ -50,6 +63,7 @@ const SpecialistFormDialog: React.FC<SpecialistFormDialogProps> = ({
   const [specialty, setSpecialty] = useState('');
   const [website, setWebsite] = useState('');
   const [bio, setBio] = useState('');
+  const [rateTier, setRateTier] = useState<RateTier | ''>('');
   const [submitting, setSubmitting] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -62,6 +76,7 @@ const SpecialistFormDialog: React.FC<SpecialistFormDialogProps> = ({
       setSpecialty(specialist.specialty || '');
       setWebsite(specialist.website || '');
       setBio(specialist.bio || '');
+      setRateTier((specialist.rate_tier as RateTier) || '');
       setAvatarPreview(specialist.avatar_url || null);
       setAvatarFile(null);
     } else if (open && !specialist) {
@@ -75,6 +90,7 @@ const SpecialistFormDialog: React.FC<SpecialistFormDialogProps> = ({
     setSpecialty('');
     setWebsite('');
     setBio('');
+    setRateTier('');
     setAvatarFile(null);
     setAvatarPreview(null);
     if (fileInputRef.current) {
@@ -139,18 +155,27 @@ const SpecialistFormDialog: React.FC<SpecialistFormDialogProps> = ({
     }
 
     if (isEdit && specialist) {
+      // Build update object
+      const updateData: Record<string, any> = {
+        full_name: fullName,
+        email: email,
+        specialty: specialty,
+        website: website || null,
+        bio: bio || null,
+        avatar_url: avatarUrl,
+        updated_at: new Date().toISOString(),
+      };
+
+      // If rate tier is set, also update hourly_rate
+      if (rateTier) {
+        updateData.rate_tier = rateTier;
+        updateData.hourly_rate = RATE_TIER_CONFIG[rateTier].hourlyRate;
+      }
+
       // Update existing specialist
       const { error } = await supabase
         .from('specialists')
-        .update({
-          full_name: fullName,
-          email: email,
-          specialty: specialty,
-          website: website || null,
-          bio: bio || null,
-          avatar_url: avatarUrl,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', specialist.id);
 
       if (error) {
@@ -161,11 +186,15 @@ const SpecialistFormDialog: React.FC<SpecialistFormDialogProps> = ({
         });
       } else {
         if (onLogActivity) {
-          await onLogActivity('update', 'specialist', specialist.id, fullName, { email, specialty });
+          await onLogActivity('update', 'specialist', specialist.id, fullName, { 
+            email, 
+            specialty,
+            rate_tier: rateTier || undefined,
+          });
         }
         toast({
           title: "Specialist updated",
-          description: `${fullName}'s profile has been updated.`,
+          description: `${fullName}'s profile has been updated.${rateTier ? ` Rate tier set to ${RATE_TIER_CONFIG[rateTier].label}.` : ''}`,
         });
         onOpenChange(false);
         onSuccess();
@@ -315,6 +344,31 @@ const SpecialistFormDialog: React.FC<SpecialistFormDialogProps> = ({
               placeholder="https://example.com"
             />
           </div>
+
+          {/* Rate Tier - Only shown when editing */}
+          {isEdit && (
+            <div className="space-y-2">
+              <Label htmlFor="rate-tier">Rate Tier</Label>
+              <Select 
+                value={rateTier} 
+                onValueChange={(value) => setRateTier(value as RateTier)}
+              >
+                <SelectTrigger id="rate-tier">
+                  <SelectValue placeholder="Select rate tier (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(RATE_TIER_CONFIG).map(([key, config]) => (
+                    <SelectItem key={key} value={key}>
+                      {config.label} — {config.minuteCost} mins/hr (${config.hourlyRate}/hr)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Setting a rate tier will approve this specialist and determine their session cost.
+              </p>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="bio">Bio (optional)</Label>
             <Textarea
