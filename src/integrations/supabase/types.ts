@@ -516,7 +516,7 @@ export type Database = {
           email: string
           full_name: string
           has_set_availability?: boolean | null
-          hourly_rate: number
+          hourly_rate?: number
           id?: string
           invitation_accepted_at?: string | null
           invitation_sent_at?: string | null
