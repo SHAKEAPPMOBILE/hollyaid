@@ -12,8 +12,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   ArrowLeft, Plus, Users, 
-  Edit, Trash2, UserPlus, Clock, CheckCircle, XCircle
+  Edit, Trash2, UserPlus, Clock, CheckCircle, XCircle, Search
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,6 +59,18 @@ const Admin: React.FC = () => {
   const [editingSpecialist, setEditingSpecialist] = useState<Specialist | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter specialists based on search query
+  const filteredSpecialists = specialists.filter(s => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      s.full_name.toLowerCase().includes(query) ||
+      s.specialty.toLowerCase().includes(query) ||
+      s.email.toLowerCase().includes(query)
+    );
+  });
   
   // Check if current user can invite specialists
   const canInviteSpecialists = user?.email && ALLOWED_INVITE_EMAILS.includes(user.email.toLowerCase());
@@ -209,10 +222,10 @@ const Admin: React.FC = () => {
 
   // Bulk selection handlers
   const toggleSelectAll = () => {
-    if (selectedIds.size === specialists.length) {
+    if (selectedIds.size === filteredSpecialists.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(specialists.map(s => s.id)));
+      setSelectedIds(new Set(filteredSpecialists.map(s => s.id)));
     }
   };
 
@@ -348,48 +361,62 @@ const Admin: React.FC = () => {
 
         {/* Specialists Management */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-4">
-            <div>
-              <CardTitle>Specialists</CardTitle>
-              <CardDescription>Manage wellness specialists on the platform</CardDescription>
+          <CardHeader className="flex flex-col gap-4">
+            <div className="flex flex-row items-center justify-between flex-wrap gap-4">
+              <div>
+                <CardTitle>Specialists</CardTitle>
+                <CardDescription>Manage wellness specialists on the platform</CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                {selectedIds.size > 0 && (
+                  <>
+                    <span className="text-sm text-muted-foreground mr-2">
+                      {selectedIds.size} selected
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => bulkUpdateStatus(true)}
+                      disabled={bulkActionLoading}
+                    >
+                      <CheckCircle size={14} className="mr-1" />
+                      Activate
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => bulkUpdateStatus(false)}
+                      disabled={bulkActionLoading}
+                    >
+                      <XCircle size={14} className="mr-1" />
+                      Deactivate
+                    </Button>
+                  </>
+                )}
+                <Button variant="wellness" onClick={handleAddClick}>
+                  <Plus size={16} />
+                  Add Specialist
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              {selectedIds.size > 0 && (
-                <>
-                  <span className="text-sm text-muted-foreground mr-2">
-                    {selectedIds.size} selected
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => bulkUpdateStatus(true)}
-                    disabled={bulkActionLoading}
-                  >
-                    <CheckCircle size={14} className="mr-1" />
-                    Activate
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => bulkUpdateStatus(false)}
-                    disabled={bulkActionLoading}
-                  >
-                    <XCircle size={14} className="mr-1" />
-                    Deactivate
-                  </Button>
-                </>
-              )}
-              <Button variant="wellness" onClick={handleAddClick}>
-                <Plus size={16} />
-                Add Specialist
-              </Button>
+            {/* Search Input */}
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, specialty, or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
             </div>
           </CardHeader>
           <CardContent>
-            {specialists.length === 0 ? (
+            {filteredSpecialists.length === 0 ? (
               <div className="text-center py-8">
                 <Users className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-muted-foreground">No specialists added yet</p>
+                <p className="text-muted-foreground">
+                  {searchQuery ? 'No specialists match your search' : 'No specialists added yet'}
+                </p>
               </div>
             ) : (
               <Table>
@@ -397,7 +424,7 @@ const Admin: React.FC = () => {
                   <TableRow>
                     <TableHead className="w-12">
                       <Checkbox
-                        checked={specialists.length > 0 && selectedIds.size === specialists.length}
+                        checked={filteredSpecialists.length > 0 && selectedIds.size === filteredSpecialists.length}
                         onCheckedChange={toggleSelectAll}
                         aria-label="Select all"
                       />
@@ -411,7 +438,7 @@ const Admin: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {specialists.map((specialist) => (
+                  {filteredSpecialists.map((specialist) => (
                     <TableRow key={specialist.id} data-selected={selectedIds.has(specialist.id)}>
                       <TableCell>
                         <Checkbox
