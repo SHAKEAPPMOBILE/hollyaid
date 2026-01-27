@@ -1,24 +1,21 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import Logo from '@/components/Logo';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
-  ArrowLeft, Plus, Users, Building2, Calendar, 
-  Edit, Trash2, UserPlus, Clock, Upload, X
+  ArrowLeft, Plus, Users, 
+  Edit, Trash2, UserPlus, Clock
 } from 'lucide-react';
 import AdminActivityLog from '@/components/AdminActivityLog';
 import AdminPayoutRequests from '@/components/AdminPayoutRequests';
+import SpecialistFormDialog from '@/components/SpecialistFormDialog';
 
 interface Specialist {
   id: string;
@@ -31,6 +28,7 @@ interface Specialist {
   avatar_url: string | null;
   user_id: string | null;
   rate_tier: string | null;
+  website?: string | null;
 }
 
 // Only these emails can invite specialists
@@ -44,19 +42,8 @@ const Admin: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [specialists, setSpecialists] = useState<Specialist[]>([]);
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  
-  // Form state
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [specialty, setSpecialty] = useState('');
-  const [website, setWebsite] = useState('');
-  const [bio, setBio] = useState('');
-  
-  const [submitting, setSubmitting] = useState(false);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showFormDialog, setShowFormDialog] = useState(false);
+  const [editingSpecialist, setEditingSpecialist] = useState<Specialist | null>(null);
   
   // Check if current user can invite specialists
   const canInviteSpecialists = user?.email && ALLOWED_INVITE_EMAILS.includes(user.email.toLowerCase());
@@ -150,99 +137,6 @@ const Admin: React.FC = () => {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast({
-          title: "File too large",
-          description: "Please select an image under 5MB",
-          variant: "destructive",
-        });
-        return;
-      }
-      setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const clearAvatar = () => {
-    setAvatarFile(null);
-    setAvatarPreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleAddSpecialist = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-
-    let avatarUrl: string | null = null;
-
-    // Upload avatar if one was selected
-    if (avatarFile) {
-      const fileExt = avatarFile.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('specialist-avatars')
-        .upload(fileName, avatarFile);
-
-      if (uploadError) {
-        toast({
-          title: "Failed to upload image",
-          description: uploadError.message,
-          variant: "destructive",
-        });
-        setSubmitting(false);
-        return;
-      }
-
-      const { data: urlData } = supabase.storage
-        .from('specialist-avatars')
-        .getPublicUrl(fileName);
-      
-      avatarUrl = urlData.publicUrl;
-    }
-
-    const { data: insertedData, error } = await supabase
-      .from('specialists')
-      .insert({
-        full_name: fullName,
-        email: email,
-        specialty: specialty,
-        website: website || null,
-        bio: bio || null,
-        hourly_rate: 25, // Placeholder, specialist will set their tier on signup
-        is_active: false, // Inactive until specialist completes signup
-        avatar_url: avatarUrl,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      toast({
-        title: "Failed to add specialist",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      // Log the add action
-      await logActivity('add', 'specialist', insertedData?.id || null, fullName, { email, specialty });
-      
-      toast({
-        title: "Specialist added",
-        description: `${fullName} has been added to the platform.`,
-      });
-      setShowAddDialog(false);
-      resetForm();
-      fetchSpecialists();
-    }
-
-    setSubmitting(false);
-  };
-
   const toggleSpecialistStatus = async (id: string, currentStatus: boolean, specialistName: string) => {
     const { error } = await supabase
       .from('specialists')
@@ -282,13 +176,21 @@ const Admin: React.FC = () => {
     }
   };
 
-  const resetForm = () => {
-    setFullName('');
-    setEmail('');
-    setSpecialty('');
-    setWebsite('');
-    setBio('');
-    clearAvatar();
+  const handleAddClick = () => {
+    setEditingSpecialist(null);
+    setShowFormDialog(true);
+  };
+
+  const handleEditClick = (specialist: Specialist) => {
+    setEditingSpecialist(specialist);
+    setShowFormDialog(true);
+  };
+
+  const handleFormClose = (open: boolean) => {
+    if (!open) {
+      setEditingSpecialist(null);
+    }
+    setShowFormDialog(open);
   };
 
   if (authLoading || loading) {
@@ -379,128 +281,10 @@ const Admin: React.FC = () => {
               <CardTitle>Specialists</CardTitle>
               <CardDescription>Manage wellness specialists on the platform</CardDescription>
             </div>
-            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-              <DialogTrigger asChild>
-                <Button variant="wellness">
-                  <Plus size={16} />
-                  Add Specialist
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add New Specialist</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleAddSpecialist} className="space-y-4 mt-4">
-                  {/* Avatar Upload */}
-                  <div className="space-y-2">
-                    <Label>Profile Photo</Label>
-                    <div className="flex items-center gap-4">
-                      {avatarPreview ? (
-                        <div className="relative">
-                          <Avatar className="h-20 w-20">
-                            <AvatarImage src={avatarPreview} />
-                            <AvatarFallback>
-                              {fullName.split(' ').map(n => n[0]).join('').toUpperCase() || 'SP'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="icon"
-                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
-                            onClick={clearAvatar}
-                          >
-                            <X size={12} />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div 
-                          className="h-20 w-20 rounded-full border-2 border-dashed border-muted-foreground/25 flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          <Upload className="text-muted-foreground" size={24} />
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleFileChange}
-                          accept="image/*"
-                          className="hidden"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          {avatarPreview ? 'Change Photo' : 'Upload Photo'}
-                        </Button>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          JPG, PNG or GIF. Max 5MB.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="full-name">Full Name</Label>
-                    <Input
-                      id="full-name"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Dr. Jane Smith"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="jane@example.com"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="specialty">Specialty</Label>
-                    <Input
-                      id="specialty"
-                      value={specialty}
-                      onChange={(e) => setSpecialty(e.target.value)}
-                      placeholder="Mental Health, Yoga, Nutrition..."
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="website">Website (optional)</Label>
-                    <Input
-                      id="website"
-                      type="url"
-                      value={website}
-                      onChange={(e) => setWebsite(e.target.value)}
-                      placeholder="https://example.com"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bio">Bio (optional)</Label>
-                    <Textarea
-                      id="bio"
-                      value={bio}
-                      onChange={(e) => setBio(e.target.value)}
-                      placeholder="Brief description of experience and approach..."
-                      rows={3}
-                    />
-                  </div>
-                  <Button type="submit" variant="wellness" className="w-full" disabled={submitting}>
-                    {submitting ? 'Adding...' : 'Add Specialist'}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <Button variant="wellness" onClick={handleAddClick}>
+              <Plus size={16} />
+              Add Specialist
+            </Button>
           </CardHeader>
           <CardContent>
             {specialists.length === 0 ? (
@@ -550,6 +334,14 @@ const Admin: React.FC = () => {
                         />
                       </TableCell>
                       <TableCell className="text-right space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditClick(specialist)}
+                        >
+                          <Edit size={14} />
+                          Edit
+                        </Button>
                         {canInviteSpecialists && (
                           <Button
                             variant="outline"
@@ -597,6 +389,15 @@ const Admin: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Specialist Form Dialog (Add/Edit) */}
+      <SpecialistFormDialog
+        open={showFormDialog}
+        onOpenChange={handleFormClose}
+        specialist={editingSpecialist}
+        onSuccess={fetchSpecialists}
+        onLogActivity={logActivity}
+      />
     </div>
   );
 };
