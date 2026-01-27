@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Phone, Bell, Save, Loader2, User, Briefcase, Building2, Camera, X, RotateCcw, Video, Trash2 } from 'lucide-react';
+import { ArrowLeft, Phone, Bell, Save, Loader2, User, Briefcase, Building2, Camera, X, RotateCcw, Video, Trash2, Globe } from 'lucide-react';
 import { resetOnboardingTour } from '@/components/OnboardingTour';
 import { useTranslation } from 'react-i18next';
 import LanguagePicker from '@/components/LanguagePicker';
@@ -40,6 +40,7 @@ const Settings: React.FC = () => {
   const [specialistId, setSpecialistId] = useState<string | null>(null);
   const [specialty, setSpecialty] = useState('');
   const [bio, setBio] = useState('');
+  const [website, setWebsite] = useState('');
   const [specialistAvatarUrl, setSpecialistAvatarUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
@@ -86,9 +87,9 @@ const Settings: React.FC = () => {
       // Check if user is a specialist
       const { data: specialistData } = await supabase
         .from('specialists')
-        .select('id, full_name, email, phone_number, specialty, bio, avatar_url, video_url')
+        .select('id, full_name, email, phone_number, specialty, bio, avatar_url, video_url, website')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (specialistData) {
         setIsSpecialist(true);
@@ -98,6 +99,7 @@ const Settings: React.FC = () => {
         setPhoneNumber(specialistData.phone_number || profileData?.phone_number || '');
         setSpecialty(specialistData.specialty || '');
         setBio(specialistData.bio || '');
+        setWebsite(specialistData.website || '');
         setSpecialistAvatarUrl(specialistData.avatar_url || null);
         setVideoUrl(specialistData.video_url || null);
       }
@@ -466,6 +468,7 @@ const Settings: React.FC = () => {
             phone_number: phoneNumber.trim() || null,
             specialty: specialty.trim(),
             bio: bio.trim() || null,
+            website: website.trim() || null,
             updated_at: new Date().toISOString(),
           })
           .eq('id', specialistId);
@@ -708,6 +711,22 @@ const Settings: React.FC = () => {
                   />
                   <p className="text-xs text-muted-foreground">
                     This will be displayed on your public profile
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="website" className="flex items-center gap-2">
+                    <Globe size={14} />
+                    Website
+                  </Label>
+                  <Input
+                    id="website"
+                    type="url"
+                    placeholder="https://yourwebsite.com"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Your personal or professional website (optional)
                   </p>
                 </div>
               </CardContent>
