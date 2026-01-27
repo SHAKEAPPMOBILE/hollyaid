@@ -8,9 +8,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut, MessageSquare, History, User } from 'lucide-react';
+import { LogOut, MessageSquare, History, User, DollarSign } from 'lucide-react';
 import SpecialistBookingRequests from '@/components/SpecialistBookingRequests';
 import SpecialistBookingHistory from '@/components/SpecialistBookingHistory';
+import SpecialistEarnings from '@/components/SpecialistEarnings';
 import ProfileCompletionIndicator from '@/components/ProfileCompletionIndicator';
 import OnboardingTour, { TourStep } from '@/components/OnboardingTour';
 
@@ -52,6 +53,7 @@ interface Specialist {
   email: string;
   specialty: string;
   hourly_rate: number;
+  rate_tier: string | null;
 }
 
 const SpecialistDashboard: React.FC = () => {
@@ -177,7 +179,7 @@ const SpecialistDashboard: React.FC = () => {
           </Card>
         </div>
 
-        {/* Tabs for Requests and History */}
+        {/* Tabs for Requests, History, and Earnings */}
         <Tabs defaultValue="requests" className="space-y-6">
           <TabsList>
             <TabsTrigger value="requests" className="flex items-center gap-2" data-tour="requests-tab">
@@ -191,6 +193,10 @@ const SpecialistDashboard: React.FC = () => {
               <History size={16} />
               Booking History
             </TabsTrigger>
+            <TabsTrigger value="earnings" className="flex items-center gap-2">
+              <DollarSign size={16} />
+              Earnings
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="requests">
@@ -202,6 +208,13 @@ const SpecialistDashboard: React.FC = () => {
 
           <TabsContent value="history">
             <SpecialistBookingHistory specialistId={specialist.id} />
+          </TabsContent>
+
+          <TabsContent value="earnings">
+            <SpecialistEarnings 
+              specialistId={specialist.id} 
+              rateTier={specialist.rate_tier}
+            />
           </TabsContent>
         </Tabs>
       </main>
