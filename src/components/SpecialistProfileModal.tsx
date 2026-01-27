@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Clock, X, Star, Play } from 'lucide-react';
+import { Calendar, Clock, X, Star, Play, Globe } from 'lucide-react';
 import SpecialistReviews from './SpecialistReviews';
 
 interface Specialist {
@@ -15,6 +15,7 @@ interface Specialist {
   avatar_url: string | null;
   rate_tier: string | null;
   video_url?: string | null;
+  website?: string | null;
 }
 
 interface SpecialistProfileModalProps {
@@ -125,7 +126,7 @@ const SpecialistProfileModal: React.FC<SpecialistProfileModalProps> = ({
                   Reviews
                 </TabsTrigger>
               </TabsList>
-              <TabsContent value="about" className="mt-4">
+              <TabsContent value="about" className="mt-4 space-y-3">
                 {specialist.bio ? (
                   <p className="text-muted-foreground text-sm leading-relaxed text-left">
                     {specialist.bio}
@@ -134,6 +135,17 @@ const SpecialistProfileModal: React.FC<SpecialistProfileModalProps> = ({
                   <p className="text-muted-foreground text-sm italic">
                     No bio available
                   </p>
+                )}
+                {specialist.website && (
+                  <a 
+                    href={specialist.website} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-primary hover:underline"
+                  >
+                    <Globe size={14} />
+                    <span>{specialist.website.replace(/^https?:\/\//, '')}</span>
+                  </a>
                 )}
               </TabsContent>
               {specialist.video_url && (

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, Clock, Star, Filter, X, MessageCircle, Video } from 'lucide-react';
+import { Calendar, Clock, Star, Filter, X, MessageCircle, Video, Globe } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import BookingRequestModal from './BookingRequestModal';
 import BookingConversation from './BookingConversation';
@@ -22,6 +22,7 @@ interface Specialist {
   avatar_url: string | null;
   rate_tier: string | null;
   video_url?: string | null;
+  website?: string | null;
   avg_rating?: number;
   review_count?: number;
 }
@@ -151,7 +152,7 @@ const SpecialistsGrid: React.FC = () => {
     // Use the specialists_public view which excludes sensitive data
     const { data, error } = await supabase
       .from('specialists_public')
-      .select('id, full_name, specialty, bio, avatar_url, rate_tier, video_url');
+      .select('id, full_name, specialty, bio, avatar_url, rate_tier, video_url, website');
 
     if (!error && data) {
       // Fetch review stats for all specialists
@@ -386,6 +387,21 @@ const SpecialistsGrid: React.FC = () => {
                   <CardDescription className={cn("line-clamp-3", isActive && "text-white/80")}>
                     {specialist.bio}
                   </CardDescription>
+                )}
+                {specialist.website && (
+                  <a 
+                    href={specialist.website} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className={cn(
+                      "flex items-center gap-1.5 text-sm hover:underline",
+                      isActive ? "text-white/90 hover:text-white" : "text-primary"
+                    )}
+                  >
+                    <Globe size={14} />
+                    <span className="truncate max-w-[200px]">{specialist.website.replace(/^https?:\/\//, '')}</span>
+                  </a>
                 )}
                 <div className="flex items-center justify-between pt-2">
                   <div className="flex items-center gap-1 text-sm">
