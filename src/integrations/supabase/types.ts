@@ -586,6 +586,7 @@ export type Database = {
           rate_tier: Database["public"]["Enums"]["specialist_rate_tier"] | null
           specialty: string | null
           video_url: string | null
+          website: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -596,6 +597,7 @@ export type Database = {
           rate_tier?: Database["public"]["Enums"]["specialist_rate_tier"] | null
           specialty?: string | null
           video_url?: string | null
+          website?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -606,6 +608,7 @@ export type Database = {
           rate_tier?: Database["public"]["Enums"]["specialist_rate_tier"] | null
           specialty?: string | null
           video_url?: string | null
+          website?: string | null
         }
         Relationships: []
       }
