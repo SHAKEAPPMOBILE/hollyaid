@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   ArrowLeft, Plus, Users, 
-  Edit, Trash2, UserPlus, Clock
+  Edit, Trash2, UserPlus, Clock, CheckCircle, XCircle
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -55,6 +56,8 @@ const Admin: React.FC = () => {
   const [specialists, setSpecialists] = useState<Specialist[]>([]);
   const [showFormDialog, setShowFormDialog] = useState(false);
   const [editingSpecialist, setEditingSpecialist] = useState<Specialist | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
   
   // Check if current user can invite specialists
   const canInviteSpecialists = user?.email && ALLOWED_INVITE_EMAILS.includes(user.email.toLowerCase());
@@ -204,6 +207,64 @@ const Admin: React.FC = () => {
     setShowFormDialog(open);
   };
 
+  // Bulk selection handlers
+  const toggleSelectAll = () => {
+    if (selectedIds.size === specialists.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(specialists.map(s => s.id)));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const bulkUpdateStatus = async (activate: boolean) => {
+    if (selectedIds.size === 0) return;
+    
+    setBulkActionLoading(true);
+    const ids = Array.from(selectedIds);
+    
+    const { error } = await supabase
+      .from('specialists')
+      .update({ is_active: activate })
+      .in('id', ids);
+
+    if (!error) {
+      // Log bulk action
+      const selectedSpecialists = specialists.filter(s => selectedIds.has(s.id));
+      for (const specialist of selectedSpecialists) {
+        await logActivity(
+          activate ? 'activate' : 'deactivate',
+          'specialist',
+          specialist.id,
+          specialist.full_name,
+          { bulk_action: true }
+        );
+      }
+      
+      fetchSpecialists();
+      setSelectedIds(new Set());
+      toast({
+        title: `${ids.length} specialist${ids.length > 1 ? 's' : ''} ${activate ? 'activated' : 'deactivated'}`,
+      });
+    } else {
+      toast({
+        title: "Failed to update specialists",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+    setBulkActionLoading(false);
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -287,15 +348,42 @@ const Admin: React.FC = () => {
 
         {/* Specialists Management */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-4">
             <div>
               <CardTitle>Specialists</CardTitle>
               <CardDescription>Manage wellness specialists on the platform</CardDescription>
             </div>
-            <Button variant="wellness" onClick={handleAddClick}>
-              <Plus size={16} />
-              Add Specialist
-            </Button>
+            <div className="flex items-center gap-2">
+              {selectedIds.size > 0 && (
+                <>
+                  <span className="text-sm text-muted-foreground mr-2">
+                    {selectedIds.size} selected
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => bulkUpdateStatus(true)}
+                    disabled={bulkActionLoading}
+                  >
+                    <CheckCircle size={14} className="mr-1" />
+                    Activate
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => bulkUpdateStatus(false)}
+                    disabled={bulkActionLoading}
+                  >
+                    <XCircle size={14} className="mr-1" />
+                    Deactivate
+                  </Button>
+                </>
+              )}
+              <Button variant="wellness" onClick={handleAddClick}>
+                <Plus size={16} />
+                Add Specialist
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {specialists.length === 0 ? (
@@ -307,6 +395,13 @@ const Admin: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={specialists.length > 0 && selectedIds.size === specialists.length}
+                        onCheckedChange={toggleSelectAll}
+                        aria-label="Select all"
+                      />
+                    </TableHead>
                     <TableHead>Specialist</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Specialty</TableHead>
@@ -317,7 +412,14 @@ const Admin: React.FC = () => {
                 </TableHeader>
                 <TableBody>
                   {specialists.map((specialist) => (
-                    <TableRow key={specialist.id}>
+                    <TableRow key={specialist.id} data-selected={selectedIds.has(specialist.id)}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(specialist.id)}
+                          onCheckedChange={() => toggleSelectOne(specialist.id)}
+                          aria-label={`Select ${specialist.full_name}`}
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9">
