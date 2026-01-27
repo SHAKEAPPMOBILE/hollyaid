@@ -50,6 +50,7 @@ const Admin: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [specialty, setSpecialty] = useState('');
+  const [website, setWebsite] = useState('');
   const [bio, setBio] = useState('');
   
   const [submitting, setSubmitting] = useState(false);
@@ -211,6 +212,7 @@ const Admin: React.FC = () => {
         full_name: fullName,
         email: email,
         specialty: specialty,
+        website: website || null,
         bio: bio || null,
         hourly_rate: 25, // Placeholder, specialist will set their tier on signup
         is_active: false, // Inactive until specialist completes signup
@@ -284,6 +286,7 @@ const Admin: React.FC = () => {
     setFullName('');
     setEmail('');
     setSpecialty('');
+    setWebsite('');
     setBio('');
     clearAvatar();
   };
@@ -470,6 +473,16 @@ const Admin: React.FC = () => {
                       onChange={(e) => setSpecialty(e.target.value)}
                       placeholder="Mental Health, Yoga, Nutrition..."
                       required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="website">Website (optional)</Label>
+                    <Input
+                      id="website"
+                      type="url"
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
+                      placeholder="https://example.com"
                     />
                   </div>
                   <div className="space-y-2">
