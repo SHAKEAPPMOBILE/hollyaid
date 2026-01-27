@@ -292,6 +292,34 @@ const Admin: React.FC = () => {
     setBulkActionLoading(false);
   };
 
+  const handleInviteAll = async () => {
+    const pendingSpecialists = specialists.filter(s => !s.user_id);
+    if (pendingSpecialists.length === 0) return;
+
+    setBulkActionLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const specialist of pendingSpecialists) {
+      const { error } = await supabase.functions.invoke('invite-specialist', {
+        body: { specialistId: specialist.id }
+      });
+
+      if (error) {
+        failCount++;
+      } else {
+        successCount++;
+        await logActivity('invite', 'specialist', specialist.id, specialist.full_name, { email: specialist.email, bulk_action: true });
+      }
+    }
+
+    setBulkActionLoading(false);
+    toast({
+      title: "Invitations sent",
+      description: `Successfully sent ${successCount} invitation${successCount !== 1 ? 's' : ''}${failCount > 0 ? `. ${failCount} failed.` : '.'}`,
+    });
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -406,6 +434,34 @@ const Admin: React.FC = () => {
                       Deactivate
                     </Button>
                   </>
+                )}
+                {canInviteSpecialists && specialists.filter(s => !s.user_id).length > 0 && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={bulkActionLoading}
+                      >
+                        <UserPlus size={14} className="mr-1" />
+                        Invite All ({specialists.filter(s => !s.user_id).length})
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Invite All Pending Specialists?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will send invitation emails to {specialists.filter(s => !s.user_id).length} specialist{specialists.filter(s => !s.user_id).length !== 1 ? 's' : ''} who haven't registered yet. Are you sure?
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleInviteAll}>
+                          Yes, Invite All
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 )}
                 <Button variant="wellness" onClick={handleAddClick}>
                   <Plus size={16} />
