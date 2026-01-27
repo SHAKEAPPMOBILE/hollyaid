@@ -18,6 +18,7 @@ import {
   Edit, Trash2, UserPlus, Clock, Upload, X
 } from 'lucide-react';
 import AdminActivityLog from '@/components/AdminActivityLog';
+import AdminPayoutRequests from '@/components/AdminPayoutRequests';
 
 interface Specialist {
   id: string;
@@ -575,9 +576,10 @@ const Admin: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Activity Log - only visible to authorized emails */}
+        {/* Payout Requests & Activity Log - only visible to authorized emails */}
         {canInviteSpecialists && (
-          <div className="mt-8">
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <AdminPayoutRequests />
             <AdminActivityLog />
           </div>
         )}

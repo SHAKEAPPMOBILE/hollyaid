@@ -44,3 +44,9 @@ verify_jwt = false
 
 [functions.notify-admin-action]
 verify_jwt = false
+
+[functions.request-payout]
+verify_jwt = false
+
+[functions.company-minutes-breakdown]
+verify_jwt = false
