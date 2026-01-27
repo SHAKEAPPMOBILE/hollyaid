@@ -13,6 +13,17 @@ import {
   ArrowLeft, Plus, Users, 
   Edit, Trash2, UserPlus, Clock
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import AdminActivityLog from '@/components/AdminActivityLog';
 import AdminPayoutRequests from '@/components/AdminPayoutRequests';
 import SpecialistFormDialog from '@/components/SpecialistFormDialog';
@@ -364,14 +375,34 @@ const Admin: React.FC = () => {
                             {specialist.user_id ? 'Registered' : 'Invite'}
                           </Button>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive"
-                          onClick={() => deleteSpecialist(specialist.id, specialist.full_name)}
-                        >
-                          <Trash2 size={16} />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive"
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Specialist</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete <strong>{specialist.full_name}</strong>? This action cannot be undone and will remove all their data from the platform.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteSpecialist(specialist.id, specialist.full_name)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     </TableRow>
                   ))}
