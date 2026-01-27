@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { UserPlus, Mail, Clock, CheckCircle, XCircle, Users, Trash2, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
@@ -287,15 +288,32 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ company }) => {
             </CardDescription>
           </div>
           {employees.filter(e => e.status === 'invited').length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleInviteAll}
-              disabled={invitingAll}
-            >
-              <Mail size={16} />
-              {invitingAll ? 'Sending...' : `Resend All (${employees.filter(e => e.status === 'invited').length})`}
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={invitingAll}
+                >
+                  <Mail size={16} />
+                  {invitingAll ? 'Sending...' : `Resend All (${employees.filter(e => e.status === 'invited').length})`}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Send All Invitations?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will send invitation emails to {employees.filter(e => e.status === 'invited').length} pending employee{employees.filter(e => e.status === 'invited').length !== 1 ? 's' : ''}. Are you sure you want to continue?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleInviteAll}>
+                    Yes, Send All
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </CardHeader>
         <CardContent>
