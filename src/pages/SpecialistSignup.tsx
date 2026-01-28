@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle, CheckCircle2, DollarSign, Phone } from 'lucide-react';
+import { AlertCircle, CheckCircle2, DollarSign, Phone, Video, X } from 'lucide-react';
 import { SPECIALIST_TIERS, SpecialistTier } from '@/lib/plans';
 
 const SpecialistSignup: React.FC = () => {
@@ -29,6 +30,13 @@ const SpecialistSignup: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [selectedTier, setSelectedTier] = useState<SpecialistTier>('standard');
   const [phoneNumber, setPhoneNumber] = useState('');
+  
+  // Video upload state
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
 
   useEffect(() => {
     validateToken();
@@ -55,6 +63,139 @@ const SpecialistSignup: React.FC = () => {
       setSpecialistData(data);
     }
     setValidating(false);
+  };
+
+  const getVideoDuration = (file: File): Promise<number> => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(video.src);
+        resolve(video.duration);
+      };
+      video.onerror = () => {
+        reject(new Error('Failed to load video metadata'));
+      };
+      video.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleVideoSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('video/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a video file (MP4, MOV, etc.)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 100MB)
+    if (file.size > 100 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload a video smaller than 100MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate video duration (max 60 seconds)
+    try {
+      const duration = await getVideoDuration(file);
+      if (duration > 60) {
+        toast({
+          title: "Video too long",
+          description: `Your video is ${Math.round(duration)} seconds. Please upload a video under 1 minute.`,
+          variant: "destructive",
+        });
+        if (videoInputRef.current) {
+          videoInputRef.current.value = '';
+        }
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking video duration:', error);
+    }
+
+    setVideoFile(file);
+    setVideoPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleRemoveVideo = () => {
+    setVideoFile(null);
+    if (videoPreviewUrl) {
+      URL.revokeObjectURL(videoPreviewUrl);
+    }
+    setVideoPreviewUrl(null);
+    if (videoInputRef.current) {
+      videoInputRef.current.value = '';
+    }
+  };
+
+  const uploadVideo = async (userId: string, specialistId: string): Promise<string | null> => {
+    if (!videoFile) return null;
+
+    setUploadingVideo(true);
+    setVideoUploadProgress(0);
+
+    try {
+      const fileExt = videoFile.name.split('.').pop();
+      const fileName = `${userId}/intro-${Date.now()}.${fileExt}`;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const uploadUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/specialist-videos/${fileName}`;
+
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            const percentComplete = Math.round((event.loaded / event.total) * 100);
+            setVideoUploadProgress(percentComplete);
+          }
+        });
+
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`Upload failed with status ${xhr.status}`));
+          }
+        });
+
+        xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+        xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+
+        xhr.open('POST', uploadUrl);
+        xhr.setRequestHeader('Authorization', `Bearer ${session.access_token}`);
+        xhr.setRequestHeader('x-upsert', 'true');
+        xhr.send(videoFile);
+      });
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('specialist-videos')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading video:', error);
+      toast({
+        title: "Video upload failed",
+        description: "Your account was created but video upload failed. You can add it later in Settings.",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setUploadingVideo(false);
+      setVideoUploadProgress(0);
+    }
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -107,7 +248,13 @@ const SpecialistSignup: React.FC = () => {
       if (user) {
         const tier = SPECIALIST_TIERS[selectedTier];
         
-        // Update specialist with user_id, rate tier, phone number, and activate
+        // Upload video if selected
+        let videoUrl: string | null = null;
+        if (videoFile) {
+          videoUrl = await uploadVideo(user.id, specialistData.id);
+        }
+        
+        // Update specialist with user_id, rate tier, phone number, video, and activate
         const { error: updateError } = await supabase
           .from('specialists')
           .update({
@@ -117,6 +264,7 @@ const SpecialistSignup: React.FC = () => {
             hourly_rate: tier.hourlyRate,
             is_active: true,
             phone_number: phoneNumber.trim(),
+            ...(videoUrl && { video_url: videoUrl }),
           })
           .eq('id', specialistData.id);
 
@@ -271,6 +419,68 @@ const SpecialistSignup: React.FC = () => {
                   </p>
                 </div>
 
+                {/* Video Upload (Optional) */}
+                <div className="space-y-3">
+                  <Label className="flex items-center gap-2">
+                    <Video size={16} />
+                    Intro Video (Optional)
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Upload a 1-minute video to introduce yourself to potential clients. Max 60 seconds.
+                  </p>
+                  
+                  <input
+                    ref={videoInputRef}
+                    type="file"
+                    accept="video/*"
+                    onChange={handleVideoSelect}
+                    className="hidden"
+                  />
+                  
+                  {!videoPreviewUrl ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => videoInputRef.current?.click()}
+                      className="w-full"
+                    >
+                      <Video size={16} className="mr-2" />
+                      Select Video
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="rounded-lg overflow-hidden bg-muted aspect-video relative">
+                        <video 
+                          src={videoPreviewUrl} 
+                          controls 
+                          className="w-full h-full object-contain"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-2 right-2"
+                          onClick={handleRemoveVideo}
+                        >
+                          <X size={16} />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground text-center">
+                        {videoFile?.name}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {uploadingVideo && (
+                    <div className="space-y-1">
+                      <Progress value={videoUploadProgress} className="h-2" />
+                      <p className="text-xs text-muted-foreground text-center">
+                        Uploading video... {videoUploadProgress}%
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="password">Create Password</Label>
                   <Input
@@ -300,9 +510,13 @@ const SpecialistSignup: React.FC = () => {
                   variant="wellness" 
                   size="lg" 
                   className="w-full"
-                  disabled={loading}
+                  disabled={loading || uploadingVideo}
                 >
-                  {loading ? 'Creating Account...' : 'Complete Registration'}
+                  {uploadingVideo 
+                    ? 'Uploading Video...' 
+                    : loading 
+                      ? 'Creating Account...' 
+                      : 'Complete Registration'}
                 </Button>
               </form>
             </CardContent>
