@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.cleanup-test-data]
 verify_jwt = false
+
+[functions.setup-test-accounts]
+verify_jwt = false
