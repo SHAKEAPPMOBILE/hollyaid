@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.company-minutes-breakdown]
 verify_jwt = false
+
+[functions.cleanup-test-data]
+verify_jwt = false
