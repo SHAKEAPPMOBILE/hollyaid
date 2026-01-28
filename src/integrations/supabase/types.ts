@@ -553,6 +553,33 @@ export type Database = {
         }
         Relationships: []
       }
+      test_account_data: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          record_id: string
+          table_name: string
+          test_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          record_id: string
+          table_name: string
+          test_user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          record_id?: string
+          table_name?: string
+          test_user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -614,6 +641,7 @@ export type Database = {
       }
     }
     Functions: {
+      cleanup_expired_test_data: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -629,6 +657,7 @@ export type Database = {
         Args: { _specialist_id: string; _user_id: string }
         Returns: boolean
       }
+      is_test_account: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "company_admin" | "employee" | "specialist"
