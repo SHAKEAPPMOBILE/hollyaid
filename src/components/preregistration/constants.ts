@@ -1,0 +1,101 @@
+export const specialtyCategories = [
+  {
+    type: "Holistic & Wellness",
+    subtypes: [
+      "Nutrition",
+      "Yoga Therapy",
+      "Meditation / Mindfulness",
+      "Breathwork",
+      "Reiki",
+      "Energy Healing",
+      "Ayurveda (consultation & lifestyle guidance)",
+      "Homeopathy",
+      "Herbalism",
+      "Aromatherapy",
+    ],
+  },
+  {
+    type: "Psychology & Mental Health",
+    subtypes: [
+      "Counseling / Psychotherapy",
+      "Cognitive Behavioral Therapy",
+      "Positive Psychology Coaching",
+      "Stress Management Therapy",
+      "Trauma-informed Therapy",
+      "Grief Counseling",
+      "Couples / Relationship Therapy",
+      "Life Coaching",
+    ],
+  },
+  {
+    type: "Occupational & Performance",
+    subtypes: [
+      "Occupational Therapy",
+      "Executive Coaching",
+      "Productivity Coaching",
+      "Leadership Coaching",
+      "Burnout Recovery Programs",
+      "Time Management Training",
+      "Resilience & Mental Fitness Training",
+      "Creativity & Innovation Coaching",
+    ],
+  },
+  {
+    type: "Body–Mind Performance Optimization",
+    subtypes: [
+      "Somatic Therapy",
+      "Hypnotherapy",
+      "Emotional Intelligence Coaching",
+      "Peak Performance Coaching",
+    ],
+  },
+  {
+    type: "Other",
+    subtypes: ["Other"],
+  },
+] as const;
+
+export const languages = [
+  "English",
+  "Spanish",
+  "French",
+  "German",
+  "Italian",
+  "Portuguese",
+  "Hindi",
+  "Mandarin",
+  "Japanese",
+  "Arabic",
+  "Other",
+] as const;
+
+export const timeZones = [
+  "UTC-12:00 (Baker Island)",
+  "UTC-11:00 (Hawaii)",
+  "UTC-10:00 (Alaska)",
+  "UTC-09:00 (Pacific)",
+  "UTC-08:00 (Mountain)",
+  "UTC-07:00 (Central)",
+  "UTC-06:00 (Eastern)",
+  "UTC-05:00 (Atlantic)",
+  "UTC-04:00 (Brazil)",
+  "UTC-03:00 (Argentina)",
+  "UTC-02:00 (Mid-Atlantic)",
+  "UTC-01:00 (Azores)",
+  "UTC+00:00 (London)",
+  "UTC+01:00 (Central Europe)",
+  "UTC+02:00 (Eastern Europe)",
+  "UTC+03:00 (Moscow)",
+  "UTC+04:00 (Dubai)",
+  "UTC+05:00 (Pakistan)",
+  "UTC+05:30 (India)",
+  "UTC+06:00 (Bangladesh)",
+  "UTC+07:00 (Thailand)",
+  "UTC+08:00 (China)",
+  "UTC+09:00 (Japan)",
+  "UTC+10:00 (Australia East)",
+  "UTC+11:00 (Solomon Islands)",
+  "UTC+12:00 (New Zealand)",
+] as const;
+
+export const paymentMethods = ["PayPal", "Bank Transfer", "Stripe", "Wire Transfer", "Other"] as const;

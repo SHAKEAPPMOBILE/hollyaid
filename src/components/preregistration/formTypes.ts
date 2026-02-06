@@ -1,0 +1,22 @@
+export type SpecialistRegistrationFormData = {
+  fullName: string;
+  email: string;
+  phone: string;
+  category: string;
+  otherCategory: string;
+  specialty: string;
+  otherSpecialty: string;
+  experience: string;
+  languages: string[];
+  otherLanguage: string;
+  timeZone: string;
+  availability: string;
+  paymentMethod: string;
+  otherPaymentMethod: string;
+  bio: string;
+  linkedIn: string;
+  website: string;
+  profilePhoto: File | null;
+  certifications: File | null;
+  agreeToTerms: boolean;
+};

@@ -16,7 +16,11 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import CompleteProfile from "./pages/CompleteProfile";
 import Settings from "./pages/Settings";
 import CompanyBilling from "./pages/CompanyBilling";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Specialists from "./pages/Specialists";
 import NotFound from "./pages/NotFound";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -28,6 +32,9 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/specialists" element={<Specialists />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/dashboard" element={<Dashboard />} />
