@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 const Index = () => {
   return (
     <main className="min-h-screen bg-background">
-      <header className="fixed top-0 right-0 z-50 p-4">
+      <header className="fixed top-0 right-0 z-50 p-4 hidden sm:block">
         <Button asChild variant="wellness" size="sm">
           <Link to="/auth">Enter Hollyaid</Link>
         </Button>
