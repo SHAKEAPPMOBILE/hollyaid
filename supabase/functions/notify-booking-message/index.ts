@@ -139,7 +139,7 @@ const handler = async (req: Request): Promise<Response> => {
             <p>Log in to your HollyAid account to view the full conversation and respond.</p>
             
             <div style="text-align: center; margin-top: 30px;">
-              <a href="https://hollyaid.lovable.app" style="display: inline-block; background: #10b981; color: white; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: 600;">View Conversation</a>
+              <a href="https://hollyaid.com" style="display: inline-block; background: #10b981; color: white; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: 600;">View Conversation</a>
             </div>
             
             <p style="margin-top: 30px; font-size: 14px; color: #666;">
@@ -160,7 +160,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send WhatsApp notification
     if (recipientPhone) {
-      const whatsappMessage = `💬 New Message from ${senderName}\n\n"${truncatedMessage}"\n\n👉 Reply now: https://hollyaid.lovable.app/auth`;
+      const whatsappMessage = `💬 New Message from ${senderName}\n\n"${truncatedMessage}"\n\n👉 Reply now: https://hollyaid.com/auth`;
       await sendWhatsAppNotification(recipientPhone, whatsappMessage);
     }
 

@@ -165,7 +165,7 @@ const handler = async (req: Request): Promise<Response> => {
               <p style="margin-top: 20px;">Please log in to your dashboard to accept or decline this request.</p>
               
               <center>
-                <a href="https://hollyaid.lovable.app/specialist-dashboard" class="cta">
+                <a href="https://hollyaid.com/specialist-dashboard" class="cta">
                   View Request →
                 </a>
               </center>
@@ -184,7 +184,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send WhatsApp notification
     if (specialist.phone_number) {
-      const whatsappMessage = `🙏 New Booking Request!\n\nHi ${specialist.full_name}, you have a new booking request from ${employeeName}.\n\n📅 ${proposedDate}\n\n👉 Login to respond: https://hollyaid.lovable.app/auth`;
+      const whatsappMessage = `🙏 New Booking Request!\n\nHi ${specialist.full_name}, you have a new booking request from ${employeeName}.\n\n📅 ${proposedDate}\n\n👉 Login to respond: https://hollyaid.com/auth`;
       await sendWhatsAppNotification(specialist.phone_number, whatsappMessage);
     }
 

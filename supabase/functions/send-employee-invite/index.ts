@@ -91,7 +91,7 @@ const handler = async (req: Request): Promise<Response> => {
               </div>
               
               <center>
-                <a href="https://hollyaid.lovable.app/employee-signup" class="cta">
+                <a href="https://hollyaid.com/employee-signup" class="cta">
                   Create Your Account →
                 </a>
               </center>

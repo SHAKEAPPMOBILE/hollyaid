@@ -290,7 +290,7 @@ serve(async (req) => {
 
     // Send WhatsApp to employee
     if (employee.phone_number) {
-      const whatsappMessage = `🎉 Booking Confirmed!\n\nHi ${employee.full_name || 'there'}, your session with ${specialist.full_name} is confirmed!\n\n📅 ${meetingDate}\n🕐 ${meetingTime}\n\n${fullMeetingUrl ? `👉 Join: ${fullMeetingUrl}` : '👉 Login for details: https://hollyaid.lovable.app/auth'}`;
+      const whatsappMessage = `🎉 Booking Confirmed!\n\nHi ${employee.full_name || 'there'}, your session with ${specialist.full_name} is confirmed!\n\n📅 ${meetingDate}\n🕐 ${meetingTime}\n\n${fullMeetingUrl ? `👉 Join: ${fullMeetingUrl}` : '👉 Login for details: https://hollyaid.com/auth'}`;
       await sendWhatsAppNotification(employee.phone_number, whatsappMessage);
     }
 

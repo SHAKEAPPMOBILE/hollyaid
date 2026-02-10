@@ -128,7 +128,7 @@ const handler = async (req: Request): Promise<Response> => {
               <p style="margin-top: 20px;">This time slot is now available for other bookings.</p>
               
               <center>
-                <a href="https://hollyaid.lovable.app/specialist-dashboard" class="cta">
+                <a href="https://hollyaid.com/specialist-dashboard" class="cta">
                   View Dashboard →
                 </a>
               </center>

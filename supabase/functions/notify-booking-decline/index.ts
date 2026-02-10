@@ -158,7 +158,7 @@ const handler = async (req: Request): Promise<Response> => {
               <p style="margin-top: 20px;">Don't worry! There are many other specialists available. Browse our directory to find another specialist who can help you.</p>
               
               <center>
-                <a href="https://hollyaid.lovable.app/dashboard" class="cta">
+                <a href="https://hollyaid.com/dashboard" class="cta">
                   Find Another Specialist →
                 </a>
               </center>
@@ -177,7 +177,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send WhatsApp notification to employee
     if (employee.phone_number) {
-      const whatsappMessage = `📋 Booking Update\n\nHi ${employeeName}, ${specialistName} is unable to accept your booking for ${proposedDate}.\n\nDon't worry - browse other specialists at:\n👉 https://hollyaid.lovable.app/dashboard`;
+      const whatsappMessage = `📋 Booking Update\n\nHi ${employeeName}, ${specialistName} is unable to accept your booking for ${proposedDate}.\n\nDon't worry - browse other specialists at:\n👉 https://hollyaid.com/dashboard`;
       await sendWhatsAppNotification(employee.phone_number, whatsappMessage);
     }
 

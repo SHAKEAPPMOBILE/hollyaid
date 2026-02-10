@@ -159,7 +159,7 @@ serve(async (req) => {
 
       // Send WhatsApp to specialist
       if (specialist.phone_number) {
-        const whatsappMessage = `📅 Reschedule Request\n\n${employee.full_name || 'An employee'} wants to reschedule their session.\n\n📆 New time: ${proposedDate} at ${proposedTime}\n\n👉 Respond: https://hollyaid.lovable.app/auth`;
+        const whatsappMessage = `📅 Reschedule Request\n\n${employee.full_name || 'An employee'} wants to reschedule their session.\n\n📆 New time: ${proposedDate} at ${proposedTime}\n\n👉 Respond: https://hollyaid.com/auth`;
         await sendWhatsAppNotification(specialist.phone_number, whatsappMessage);
       }
 
@@ -193,7 +193,7 @@ serve(async (req) => {
 
       // Send WhatsApp to employee
       if (employee.phone_number) {
-        const whatsappMessage = `📅 Booking Rescheduled\n\n${specialist.full_name} has proposed a new time for your session.\n\n📆 ${proposedDate} at ${proposedTime}\n\n👉 View details: https://hollyaid.lovable.app/dashboard`;
+        const whatsappMessage = `📅 Booking Rescheduled\n\n${specialist.full_name} has proposed a new time for your session.\n\n📆 ${proposedDate} at ${proposedTime}\n\n👉 View details: https://hollyaid.com/dashboard`;
         await sendWhatsAppNotification(employee.phone_number, whatsappMessage);
       }
 

@@ -81,7 +81,7 @@ serve(async (req) => {
     }
 
     // Build invitation link
-    const origin = req.headers.get("origin") || "https://hollyaid.lovable.app";
+    const origin = req.headers.get("origin") || "https://hollyaid.com";
     const invitationLink = `${origin}/specialist-signup?token=${invitationToken}&email=${encodeURIComponent(specialist.email)}`;
 
     // Send email via Resend

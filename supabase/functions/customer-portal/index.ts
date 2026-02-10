@@ -52,7 +52,7 @@ serve(async (req) => {
     } else {
       customerId = customers.data[0].id;
     }
-    const origin = req.headers.get("origin") || "https://hollyaid.lovable.app";
+    const origin = req.headers.get("origin") || "https://hollyaid.com";
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,

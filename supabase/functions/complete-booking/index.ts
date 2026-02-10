@@ -100,7 +100,7 @@ async function sendLowMinutesEmail(
               <p style="margin-top: 20px;">To ensure uninterrupted access to wellness services, consider upgrading your plan before your minutes run out.</p>
               
               <center>
-                <a href="https://hollyaid.lovable.app/dashboard" class="cta">
+                <a href="https://hollyaid.com/dashboard" class="cta">
                   View Dashboard →
                 </a>
               </center>

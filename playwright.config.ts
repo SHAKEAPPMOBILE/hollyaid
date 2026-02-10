@@ -1,6 +1,6 @@
-import { createLovableConfig } from "lovable-agent-playwright-config/config";
+import { defineConfig } from '@playwright/test';
 
-export default createLovableConfig({
+export default defineConfig({
 	// Tests should be placed in the 'e2e' folder (default)
 	// Add your custom playwright configuration overrides here
 	// Example:
