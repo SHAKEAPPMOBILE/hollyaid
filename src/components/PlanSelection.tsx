@@ -1,9 +1,15 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Check, Loader2, Zap, TrendingUp, Building2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import React, { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Check, Loader2, Zap, TrendingUp, Building2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export interface Plan {
   id: string;
@@ -18,31 +24,31 @@ export interface Plan {
 
 export const WELLNESS_PLANS: Plan[] = [
   {
-    id: 'starter',
-    name: 'Starter',
+    id: "starter",
+    name: "Starter",
     price: 340,
     minutes: 500,
-    hours: '8.3',
-    priceId: 'price_1SqEi7GdNaB1L9YZi2z1wViF',
+    hours: "8.3",
+    priceId: "price_1T2EXyGqEX4plgbe5klHtV5y",
     icon: <Zap className="w-6 h-6" />,
   },
   {
-    id: 'growth',
-    name: 'Growth',
+    id: "growth",
+    name: "Growth",
     price: 950,
     minutes: 1500,
-    hours: '25',
-    priceId: 'price_1SqEiJGdNaB1L9YZCJqfjMTg',
+    hours: "25",
+    priceId: "price_1T2EYQGqEX4plgbewYPw9C39",
     icon: <TrendingUp className="w-6 h-6" />,
     popular: true,
   },
   {
-    id: 'scale',
-    name: 'Scale',
+    id: "scale",
+    name: "Scale",
     price: 1850,
     minutes: 3600,
-    hours: '60',
-    priceId: 'price_1SqEiVGdNaB1L9YZBSASxzco',
+    hours: "60",
+    priceId: "price_1T2EYvGqEX4plgbe2d6taMm5",
     icon: <Building2 className="w-6 h-6" />,
   },
 ];
@@ -53,17 +59,19 @@ interface PlanSelectionProps {
   selectedPlanId?: string;
 }
 
-const PlanSelection: React.FC<PlanSelectionProps> = ({ 
-  onSelectPlan, 
-  loading, 
-  selectedPlanId 
+const PlanSelection: React.FC<PlanSelectionProps> = ({
+  onSelectPlan,
+  loading,
+  selectedPlanId,
 }) => {
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
 
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold">Choose Your Wellness Minutes Plan</h2>
+        <h2 className="text-2xl font-bold">
+          Choose Your Wellness Minutes Plan
+        </h2>
         <p className="text-muted-foreground mt-2">
           Purchase monthly wellness minutes for your team
         </p>
@@ -77,7 +85,7 @@ const PlanSelection: React.FC<PlanSelectionProps> = ({
               "relative cursor-pointer transition-all duration-200 hover:shadow-lg",
               plan.popular && "border-primary shadow-md",
               hoveredPlan === plan.id && "scale-[1.02]",
-              selectedPlanId === plan.id && loading && "opacity-75"
+              selectedPlanId === plan.id && loading && "opacity-75",
             )}
             onMouseEnter={() => setHoveredPlan(plan.id)}
             onMouseLeave={() => setHoveredPlan(null)}
@@ -102,7 +110,7 @@ const PlanSelection: React.FC<PlanSelectionProps> = ({
                 <span className="text-4xl font-bold">${plan.price}</span>
                 <span className="text-muted-foreground">/month</span>
               </div>
-              
+
               <div className="text-sm text-muted-foreground">
                 ≈ {plan.hours} hours of wellness sessions
               </div>
@@ -122,8 +130,8 @@ const PlanSelection: React.FC<PlanSelectionProps> = ({
                 </li>
               </ul>
 
-              <Button 
-                variant={plan.popular ? "wellness" : "outline"} 
+              <Button
+                variant={plan.popular ? "wellness" : "outline"}
                 className="w-full"
                 disabled={loading}
               >
@@ -133,7 +141,7 @@ const PlanSelection: React.FC<PlanSelectionProps> = ({
                     Processing...
                   </>
                 ) : (
-                  'Select Plan'
+                  "Select Plan"
                 )}
               </Button>
             </CardContent>
@@ -142,8 +150,8 @@ const PlanSelection: React.FC<PlanSelectionProps> = ({
       </div>
 
       <p className="text-xs text-muted-foreground text-center">
-        Minutes are used when employees book sessions with specialists. 
-        Unused minutes expire at the end of each billing period.
+        Minutes are used when employees book sessions with specialists. Unused
+        minutes expire at the end of each billing period.
       </p>
     </div>
   );

@@ -4,21 +4,22 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 // Plan configurations
 const PLANS = {
   starter: {
-    priceId: "price_1SqEi7GdNaB1L9YZi2z1wViF",
+    priceId: "price_1T2EXyGqEX4plgbe5klHtV5y",
     minutes: 500,
   },
   growth: {
-    priceId: "price_1SqEiJGdNaB1L9YZCJqfjMTg",
+    priceId: "price_1T2EYQGqEX4plgbewYPw9C39",
     minutes: 1500,
   },
   scale: {
-    priceId: "price_1SqEiVGdNaB1L9YZBSASxzco",
+    priceId: "price_1T2EYvGqEX4plgbe2d6taMm5",
     minutes: 3600,
   },
 };
@@ -33,12 +34,12 @@ serve(async (req) => {
 
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
   );
 
   const supabaseAdmin = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
   );
 
   try {
@@ -46,14 +47,14 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data } = await supabaseClient.auth.getUser(token);
     const user = data.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
+    if (!user?.email)
+      throw new Error("User not authenticated or email not available");
 
     // Get request body for plan selection
     const body = await req.json().catch(() => ({}));
-    const planType = body.planType || "starter";
-    
+    const planType = (body.planType || "starter").toString().trim();
     const plan = PLANS[planType as keyof typeof PLANS];
-    if (!plan) throw new Error("Invalid plan type");
+    if (!plan) throw new Error(`Invalid plan type: ${planType}`);
 
     const emailDomain = user.email.split("@")[1]?.toLowerCase();
     const isTestAccount = TEST_DOMAINS.includes(emailDomain);
@@ -61,11 +62,11 @@ serve(async (req) => {
     // If test account, activate subscription immediately without Stripe
     if (isTestAccount) {
       console.log(`Test account detected: ${user.email}`);
-      
+
       const now = new Date();
       const periodEnd = new Date(now);
       periodEnd.setMonth(periodEnd.getMonth() + 1);
-      
+
       const { error: updateError } = await supabaseAdmin
         .from("companies")
         .update({
@@ -85,23 +86,36 @@ serve(async (req) => {
         throw new Error("Failed to activate test subscription");
       }
 
-      return new Response(JSON.stringify({ 
-        success: true, 
-        isTestAccount: true,
-        message: "Test subscription activated" 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          isTestAccount: true,
+          message: "Test subscription activated",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        },
+      );
     }
 
     // Regular Stripe checkout for non-test accounts
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-      apiVersion: "2025-08-27.basil",
-    });
+    const stripeKey = (Deno.env.get("STRIPE_SECRET_KEY") || "").trim();
+
+    const stripe = new Stripe(stripeKey);
+
+    // Sanitize plan selection
+    const rawPlanType = planType;
+    // plan is already declared above
+
+    // Ensure Price ID is clean (remove any hidden chars)
+    const cleanPriceId = plan.priceId.replace(/[^\x20-\x7E]/g, "").trim();
 
     // Check if customer exists
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    const customers = await stripe.customers.list({
+      email: user.email,
+      limit: 1,
+    });
     let customerId;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
@@ -114,16 +128,16 @@ serve(async (req) => {
       customer_email: customerId ? undefined : user.email,
       line_items: [
         {
-          price: plan.priceId,
+          price: cleanPriceId,
           quantity: 1,
         },
       ],
       mode: "subscription",
-      success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}&plan=${planType}`,
+      success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}&plan=${rawPlanType}`,
       cancel_url: `${origin}/auth`,
       metadata: {
         user_id: user.id,
-        plan_type: planType,
+        plan_type: rawPlanType,
         minutes_included: plan.minutes.toString(),
       },
     });
