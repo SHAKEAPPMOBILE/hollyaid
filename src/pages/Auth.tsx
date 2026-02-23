@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { isCompanyEmail, getEmailDomain } from '@/lib/supabase';
 import { supabase } from '@/integrations/supabase/client';
 import Logo from '@/components/Logo';
@@ -8,35 +7,33 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Users, AlertCircle, CheckCircle2, Loader2, HandHeart, ArrowLeft } from 'lucide-react';
+import { Building2, Users, AlertCircle, CheckCircle2, Loader2, HandHeart, ArrowLeft, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import PlanSelection, { WELLNESS_PLANS, Plan } from '@/components/PlanSelection';
 import { isTestAccountEmail } from '@/lib/plans';
 
-type AuthView = 'main' | 'employee-login' | 'specialist-login' | 'company-login' | 'register' | 'forgot-password' | 'select-plan';
+type AuthView = 'main' | 'employee-login' | 'specialist-login' | 'company-login' | 'register' | 'select-plan';
+type OtpStep = 'email' | 'otp';
 
 const Auth: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn, signUp } = useAuth();
   const { toast } = useToast();
-  
+
   const [view, setView] = useState<AuthView>('main');
+  const [otpStep, setOtpStep] = useState<OtpStep>('email');
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
   const [fullName, setFullName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [emailError, setEmailError] = useState('');
   const [redirectingToPayment, setRedirectingToPayment] = useState(false);
-  const [resetEmailSent, setResetEmailSent] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string>('');
   const [registeredUserId, setRegisteredUserId] = useState<string | null>(null);
+  const [userType, setUserType] = useState<'employee' | 'specialist' | 'company'>('employee');
 
   const validateCompanyEmail = (email: string) => {
-    if (!email) {
-      setEmailError('');
-      return;
-    }
+    if (!email) { setEmailError(''); return; }
     if (!isCompanyEmail(email)) {
       setEmailError('Please use your company email address (not Gmail, Yahoo, etc.)');
     } else {
@@ -46,11 +43,11 @@ const Auth: React.FC = () => {
 
   const resetForm = () => {
     setEmail('');
-    setPassword('');
+    setOtp('');
     setFullName('');
     setCompanyName('');
     setEmailError('');
-    setResetEmailSent(false);
+    setOtpStep('email');
     setSelectedPlanId('');
     setRegisteredUserId(null);
   };
@@ -65,8 +62,6 @@ const Auth: React.FC = () => {
   };
 
   const ensureSessionReady = async () => {
-    // Immediately after sign-in, the auth token may not yet be attached to subsequent requests.
-    // We retry a couple times to avoid false "Access denied" flows.
     for (let i = 0; i < 5; i++) {
       const { data } = await supabase.auth.getSession();
       if (data.session?.access_token) return true;
@@ -75,322 +70,233 @@ const Auth: React.FC = () => {
     return false;
   };
 
-  const handleLogin = async (e: React.FormEvent, userType: 'employee' | 'specialist' | 'company') => {
+  const handleSendOtp = async (e: React.FormEvent, type: 'employee' | 'specialist' | 'company') => {
     e.preventDefault();
     setLoading(true);
-    
-    const { user: loggedInUser, error } = await signIn(email, password);
-    
+    setUserType(type);
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: true },
+    });
+
     if (error) {
-      toast({
-        title: "Login failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      setOtpStep('otp');
+      toast({ title: 'Code sent!', description: `Check your inbox at ${email}` });
+    }
+
+    setLoading(false);
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token: otp,
+      type: 'email',
+    });
+
+    if (error || !data.user) {
+      toast({ title: 'Invalid code', description: error?.message || 'Please try again.', variant: 'destructive' });
       setLoading(false);
       return;
     }
 
     const sessionReady = await ensureSessionReady();
     if (!sessionReady) {
-      toast({
-        title: "Login failed",
-        description: "Session not ready. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: 'Login failed', description: 'Session not ready. Please try again.', variant: 'destructive' });
       await supabase.auth.signOut();
       setLoading(false);
       return;
     }
 
-    if (loggedInUser) {
-      if (userType === 'specialist') {
-        const {
-          data: specialist,
-          error: specialistError,
-        } = await supabase
-          .from('specialists')
-          .select('id')
-          .eq('user_id', loggedInUser.id)
-          .maybeSingle();
+    const loggedInUser = data.user;
 
-        if (specialistError) {
-          console.error('Specialist lookup failed:', {
-            userId: loggedInUser.id,
-            message: specialistError.message,
-            code: (specialistError as any).code,
-            details: (specialistError as any).details,
-          });
-          toast({
-            title: 'Login failed',
-            description: `Couldn't verify specialist access: ${specialistError.message}`,
-            variant: 'destructive',
-          });
-          await supabase.auth.signOut();
-          setLoading(false);
-          return;
-        }
+    if (userType === 'specialist') {
+      const { data: specialist, error: specialistError } = await supabase
+        .from('specialists')
+        .select('id')
+        .eq('user_id', loggedInUser.id)
+        .maybeSingle();
 
-        if (!specialist) {
-          console.warn('Specialist not found for user_id:', loggedInUser.id);
-          toast({
-            title: 'Access denied',
-            description: 'This account is not registered as a specialist.',
-            variant: 'destructive',
-          });
-          await supabase.auth.signOut();
-          setLoading(false);
-          return;
-        }
-
-        toast({
-          title: "Welcome back!",
-          description: "You've been logged in successfully.",
-        });
-        navigate('/specialist-dashboard');
-      } else if (userType === 'company') {
-        const { data: company } = await supabase
-          .from('companies')
-          .select('id, subscription_status')
-          .eq('admin_user_id', loggedInUser.id)
-          .single();
-
-        if (!company) {
-          toast({
-            title: "Access denied",
-            description: "This account is not registered as a company admin.",
-            variant: "destructive",
-          });
-          await supabase.auth.signOut();
-          setLoading(false);
-          return;
-        }
-
-        // If subscription is unpaid, show plan selection
-        if (company.subscription_status === 'unpaid') {
-          setRegisteredUserId(loggedInUser.id);
-          setView('select-plan');
-          setLoading(false);
-          return;
-        }
-
-        // Check if profile is complete
-        const profileComplete = await checkProfileComplete(loggedInUser.id);
-        toast({
-          title: "Welcome back!",
-          description: "You've been logged in successfully.",
-        });
-        navigate(profileComplete ? '/admin' : '/complete-profile');
-      } else {
-        // Employee login - allow specialists to be blocked but allow company admins
-        const { data: specialist } = await supabase
-          .from('specialists')
-          .select('id')
-          .eq('user_id', loggedInUser.id)
-          .single();
-
-        if (specialist) {
-          toast({
-            title: "Wrong login",
-            description: "Please use specialist login for your account.",
-            variant: "destructive",
-          });
-          await supabase.auth.signOut();
-          setLoading(false);
-          return;
-        }
-
-        // Auto-link employee to company based on email domain if not already linked
-        const emailDomain = getEmailDomain(email);
-        if (emailDomain) {
-          // Check if already linked to a company
-          const { data: existingLink } = await supabase
-            .from('company_employees')
-            .select('id')
-            .eq('user_id', loggedInUser.id)
-            .maybeSingle();
-
-          if (!existingLink) {
-            // Find matching company by email domain
-            const { data: matchingCompany } = await supabase
-              .from('companies')
-              .select('id, name')
-              .eq('email_domain', emailDomain)
-              .eq('subscription_status', 'active')
-              .maybeSingle();
-
-            if (matchingCompany) {
-              // Check if there's an existing invitation by email
-              const { data: existingInvite } = await supabase
-                .from('company_employees')
-                .select('id')
-                .eq('company_id', matchingCompany.id)
-                .eq('email', email.toLowerCase())
-                .maybeSingle();
-
-              if (existingInvite) {
-                // Update existing invitation
-                await supabase
-                  .from('company_employees')
-                  .update({
-                    user_id: loggedInUser.id,
-                    status: 'accepted',
-                    accepted_at: new Date().toISOString(),
-                  })
-                  .eq('id', existingInvite.id);
-              } else {
-                // Auto-join company
-                await supabase
-                  .from('company_employees')
-                  .insert({
-                    company_id: matchingCompany.id,
-                    email: email.toLowerCase(),
-                    user_id: loggedInUser.id,
-                    status: 'accepted',
-                    accepted_at: new Date().toISOString(),
-                    auto_joined: true,
-                  });
-              }
-
-              // Add employee role if not exists
-              const { data: existingRole } = await supabase
-                .from('user_roles')
-                .select('id')
-                .eq('user_id', loggedInUser.id)
-                .eq('role', 'employee')
-                .maybeSingle();
-
-              if (!existingRole) {
-                await supabase
-                  .from('user_roles')
-                  .insert({
-                    user_id: loggedInUser.id,
-                    role: 'employee',
-                  });
-              }
-
-              console.log('Auto-linked employee to company:', matchingCompany.name);
-              toast({
-                title: "Welcome!",
-                description: `You've been added to ${matchingCompany.name}`,
-              });
-            }
-          }
-        }
-
-        // Check if profile is complete, redirect accordingly
-        const profileComplete = await checkProfileComplete(loggedInUser.id);
-        toast({
-          title: "Welcome back!",
-          description: "You've been logged in successfully.",
-        });
-        navigate(profileComplete ? '/dashboard' : '/complete-profile');
-      }
-    }
-    
-    setLoading(false);
-  };
-
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      setResetEmailSent(true);
-      toast({
-        title: "Email sent!",
-        description: "Check your inbox for password reset instructions.",
-      });
-    }
-
-    setLoading(false);
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!isCompanyEmail(email)) {
-      toast({
-        title: "Invalid email",
-        description: "Please use your company email address to register.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-    
-    const { error: signUpError } = await signUp(email, password, fullName);
-    
-    if (signUpError) {
-      toast({
-        title: "Registration failed",
-        description: signUpError.message,
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
-
-    const { user: newUser, error: signInError } = await signIn(email, password);
-    
-    if (signInError) {
-      toast({
-        title: "Login failed after registration",
-        description: signInError.message,
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
-
-    if (newUser) {
-      const domain = getEmailDomain(email);
-      const { error: companyError } = await supabase
-        .from('companies')
-        .insert({
-          name: companyName,
-          email_domain: domain,
-          admin_user_id: newUser.id,
-          subscription_status: 'unpaid',
-          is_test_account: isTestAccountEmail(email),
-        });
-
-      if (companyError) {
-        toast({
-          title: "Company creation failed",
-          description: companyError.message,
-          variant: "destructive",
-        });
+      if (specialistError || !specialist) {
+        toast({ title: 'Access denied', description: 'This account is not registered as a specialist.', variant: 'destructive' });
+        await supabase.auth.signOut();
         setLoading(false);
         return;
       }
 
-      await supabase
-        .from('user_roles')
-        .insert({
-          user_id: newUser.id,
-          role: 'company_admin',
-        });
+      toast({ title: 'Welcome back!', description: "You've been logged in successfully." });
+      navigate('/specialist-dashboard');
 
-      setRegisteredUserId(newUser.id);
-      setView('select-plan');
-      toast({
-        title: "Account created!",
-        description: "Now choose your wellness minutes plan.",
-      });
+    } else if (userType === 'company') {
+      const { data: company } = await supabase
+        .from('companies')
+        .select('id, subscription_status')
+        .eq('admin_user_id', loggedInUser.id)
+        .single();
+
+      if (!company) {
+        toast({ title: 'Access denied', description: 'This account is not registered as a company admin.', variant: 'destructive' });
+        await supabase.auth.signOut();
+        setLoading(false);
+        return;
+      }
+
+      if (company.subscription_status === 'unpaid') {
+        setRegisteredUserId(loggedInUser.id);
+        setView('select-plan');
+        setLoading(false);
+        return;
+      }
+
+      const profileComplete = await checkProfileComplete(loggedInUser.id);
+      toast({ title: 'Welcome back!', description: "You've been logged in successfully." });
+      navigate(profileComplete ? '/admin' : '/complete-profile');
+
+    } else {
+      const { data: specialist } = await supabase
+        .from('specialists')
+        .select('id')
+        .eq('user_id', loggedInUser.id)
+        .single();
+
+      if (specialist) {
+        toast({ title: 'Wrong login', description: 'Please use specialist login for your account.', variant: 'destructive' });
+        await supabase.auth.signOut();
+        setLoading(false);
+        return;
+      }
+
+      const emailDomain = getEmailDomain(email);
+      if (emailDomain) {
+        const { data: existingLink } = await supabase
+          .from('company_employees')
+          .select('id')
+          .eq('user_id', loggedInUser.id)
+          .maybeSingle();
+
+        if (!existingLink) {
+          const { data: matchingCompany } = await supabase
+            .from('companies')
+            .select('id, name')
+            .eq('email_domain', emailDomain)
+            .eq('subscription_status', 'active')
+            .maybeSingle();
+
+          if (matchingCompany) {
+            const { data: existingInvite } = await supabase
+              .from('company_employees')
+              .select('id')
+              .eq('company_id', matchingCompany.id)
+              .eq('email', email.toLowerCase())
+              .maybeSingle();
+
+            if (existingInvite) {
+              await supabase.from('company_employees').update({
+                user_id: loggedInUser.id,
+                status: 'accepted',
+                accepted_at: new Date().toISOString(),
+              }).eq('id', existingInvite.id);
+            } else {
+              await supabase.from('company_employees').insert({
+                company_id: matchingCompany.id,
+                email: email.toLowerCase(),
+                user_id: loggedInUser.id,
+                status: 'accepted',
+                accepted_at: new Date().toISOString(),
+                auto_joined: true,
+              });
+            }
+
+            const { data: existingRole } = await supabase
+              .from('user_roles')
+              .select('id')
+              .eq('user_id', loggedInUser.id)
+              .eq('role', 'employee')
+              .maybeSingle();
+
+            if (!existingRole) {
+              await supabase.from('user_roles').insert({ user_id: loggedInUser.id, role: 'employee' });
+            }
+
+            toast({ title: 'Welcome!', description: `You've been added to ${matchingCompany.name}` });
+          }
+        }
+      }
+
+      const profileComplete = await checkProfileComplete(loggedInUser.id);
+      toast({ title: 'Welcome back!', description: "You've been logged in successfully." });
+      navigate(profileComplete ? '/dashboard' : '/complete-profile');
     }
-    
+
+    setLoading(false);
+  };
+
+  const handleRegisterSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!isCompanyEmail(email)) {
+      toast({ title: 'Invalid email', description: 'Please use your company email address.', variant: 'destructive' });
+      return;
+    }
+
+    setLoading(true);
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: true },
+    });
+
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      setOtpStep('otp');
+      toast({ title: 'Code sent!', description: `Check your inbox at ${email}` });
+    }
+
+    setLoading(false);
+  };
+
+  const handleRegisterVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const { data, error } = await supabase.auth.verifyOtp({ email, token: otp, type: 'email' });
+
+    if (error || !data.user) {
+      toast({ title: 'Invalid code', description: error?.message || 'Please try again.', variant: 'destructive' });
+      setLoading(false);
+      return;
+    }
+
+    const newUser = data.user;
+    const domain = getEmailDomain(email);
+
+    const { error: companyError } = await supabase.from('companies').insert({
+      name: companyName,
+      email_domain: domain,
+      admin_user_id: newUser.id,
+      subscription_status: 'unpaid',
+      is_test_account: isTestAccountEmail(email),
+    });
+
+    if (companyError) {
+      toast({ title: 'Company creation failed', description: companyError.message, variant: 'destructive' });
+      setLoading(false);
+      return;
+    }
+
+    await supabase.from('user_roles').insert({ user_id: newUser.id, role: 'company_admin' });
+
+    setRegisteredUserId(newUser.id);
+    setView('select-plan');
+    toast({ title: 'Account created!', description: 'Now choose your wellness minutes plan.' });
+
     setLoading(false);
   };
 
@@ -402,20 +308,15 @@ const Auth: React.FC = () => {
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: { planType: plan.id },
       });
-      
+
       if (error) throw error;
-      
-      // Test account - subscription activated without Stripe
+
       if (data?.isTestAccount) {
-        toast({
-          title: "Plan activated!",
-          description: `Your ${plan.name} plan is now active with ${plan.minutes} minutes.`,
-        });
+        toast({ title: 'Plan activated!', description: `Your ${plan.name} plan is now active.` });
         navigate('/complete-profile');
         return;
       }
 
-      // Regular account - redirect to Stripe
       if (data?.url) {
         setRedirectingToPayment(true);
         window.location.href = data.url;
@@ -423,11 +324,7 @@ const Auth: React.FC = () => {
         throw new Error('No checkout URL received');
       }
     } catch (checkoutError: any) {
-      toast({
-        title: "Payment setup failed",
-        description: checkoutError.message || "Please try again later.",
-        variant: "destructive",
-      });
+      toast({ title: 'Payment setup failed', description: checkoutError.message || 'Please try again later.', variant: 'destructive' });
     }
 
     setLoading(false);
@@ -446,218 +343,136 @@ const Auth: React.FC = () => {
     );
   }
 
-  const renderMainView = () => (
-    <Card className="shadow-lg border-0">
-      <CardHeader className="text-center pb-2">
-        <CardTitle className="text-2xl font-bold">Welcome to HollyAid</CardTitle>
-        <CardDescription className="text-muted-foreground">
-          Your corporate wellness portal
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Button 
-          variant="wellness" 
-          size="lg" 
-          className="w-full"
-          onClick={() => { resetForm(); setView('employee-login'); }}
-        >
-          <Users size={18} className="mr-2" />
-          Employee Login
-        </Button>
-        
-        <Button 
-          variant="outline" 
-          size="lg" 
-          className="w-full"
-          onClick={() => { resetForm(); setView('specialist-login'); }}
-        >
-          <HandHeart size={18} className="mr-2 text-primary" />
-          Specialist Login
-        </Button>
-        
-        <Button 
-          variant="outline" 
-          size="lg" 
-          className="w-full"
-          onClick={() => { resetForm(); setView('company-login'); }}
-        >
-          <Building2 size={18} className="mr-2" />
-          Company Login
-        </Button>
+  const renderOtpForm = (type: 'employee' | 'specialist' | 'company') => {
+    const titles = { employee: 'Employee Login', specialist: 'Specialist Login', company: 'Company Login' };
+    const descriptions = { employee: 'wellness portal', specialist: 'dashboard', company: 'admin dashboard' };
 
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">Or</span>
-          </div>
-        </div>
-
-        <Button 
-          variant="secondary" 
-          size="lg" 
-          className="w-full"
-          onClick={() => { resetForm(); setView('register'); }}
-        >
-          <Building2 size={18} className="mr-2" />
-          Register as Company
-        </Button>
-
-        <div className="pt-4 border-t mt-6">
-          <p className="text-sm text-center text-muted-foreground mb-3">
-            New employee? Join your company
-          </p>
-          <Button 
-            variant="outline" 
-            className="w-full"
-            onClick={() => navigate('/employee-signup')}
-          >
-            Join Now
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  const renderLoginForm = (userType: 'employee' | 'specialist' | 'company') => {
-    const titles = {
-      employee: 'Employee Login',
-      specialist: 'Specialist Login',
-      company: 'Company Login'
-    };
-    const descriptions = {
-      employee: 'wellness portal',
-      specialist: 'dashboard',
-      company: 'admin dashboard'
-    };
-    
     return (
-    <Card className="shadow-lg border-0">
-      <CardHeader className="text-center pb-2 relative">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="absolute left-4 top-4"
-          onClick={() => { resetForm(); setView('main'); }}
-        >
-          <ArrowLeft size={16} className="mr-1" />
-          Back
-        </Button>
-        <div className="pt-6">
-          <CardTitle className="text-2xl font-bold">
-            {titles[userType]}
-          </CardTitle>
-          <CardDescription className="text-muted-foreground">
-            Sign in to access your {descriptions[userType]}
-          </CardDescription>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={(e) => handleLogin(e, userType)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="login-email">Email</Label>
-            <Input
-              id="login-email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="login-password">Password</Label>
-              <Button 
-                type="button"
-                variant="link" 
-                className="px-0 h-auto text-sm text-muted-foreground"
-                onClick={() => setView('forgot-password')}
-              >
-                Forgot password?
-              </Button>
-            </div>
-            <Input
-              id="login-password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <Button 
-            type="submit" 
-            variant="wellness" 
-            size="lg" 
-            className="w-full"
-            disabled={loading}
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
+      <Card className="shadow-lg border-0">
+        <CardHeader className="text-center pb-2 relative">
+          <Button variant="ghost" size="sm" className="absolute left-4 top-4"
+            onClick={() => { resetForm(); setView('main'); }}>
+            <ArrowLeft size={16} className="mr-1" /> Back
           </Button>
-        </form>
-      </CardContent>
-    </Card>
-  );
+          <div className="pt-6">
+            <CardTitle className="text-2xl font-bold">{titles[type]}</CardTitle>
+            <CardDescription className="text-muted-foreground">
+              {otpStep === 'email'
+                ? `Sign in to access your ${descriptions[type]}`
+                : `Enter the 6-digit code sent to ${email}`}
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {otpStep === 'email' ? (
+            <form onSubmit={(e) => handleSendOtp(e, type)} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="login-email">Email</Label>
+                <Input id="login-email" type="email" placeholder="you@example.com"
+                  value={email} onChange={(e) => setEmail(e.target.value)} required />
+              </div>
+              <Button type="submit" variant="wellness" size="lg" className="w-full" disabled={loading}>
+                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Mail size={16} className="mr-2" />}
+                {loading ? 'Sending...' : 'Send Login Code'}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="otp-code">Verification Code</Label>
+                <Input id="otp-code" type="text" placeholder="123456" maxLength={6}
+                  value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} required />
+                <p className="text-xs text-muted-foreground">Didn't receive it?{' '}
+                  <button type="button" className="text-primary underline"
+                    onClick={() => supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })
+                      .then(() => toast({ title: 'Code resent!', description: 'Check your inbox.' }))}>
+                    Resend code
+                  </button>
+                </p>
+              </div>
+              <Button type="submit" variant="wellness" size="lg" className="w-full" disabled={loading}>
+                {loading ? 'Verifying...' : 'Verify & Sign In'}
+              </Button>
+              <Button type="button" variant="ghost" className="w-full" onClick={() => setOtpStep('email')}>
+                ← Change email
+              </Button>
+            </form>
+          )}
+        </CardContent>
+      </Card>
+    );
   };
 
-  const renderForgotPassword = () => (
+  const renderRegister = () => (
     <Card className="shadow-lg border-0">
       <CardHeader className="text-center pb-2 relative">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="absolute left-4 top-4"
-          onClick={() => { resetForm(); setView('main'); }}
-        >
-          <ArrowLeft size={16} className="mr-1" />
-          Back
+        <Button variant="ghost" size="sm" className="absolute left-4 top-4"
+          onClick={() => { resetForm(); setView('main'); }}>
+          <ArrowLeft size={16} className="mr-1" /> Back
         </Button>
         <div className="pt-6">
-          <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
+          <CardTitle className="text-2xl font-bold">Register Your Company</CardTitle>
           <CardDescription className="text-muted-foreground">
-            {resetEmailSent 
-              ? "Check your email for reset instructions" 
-              : "Enter your email to receive a reset link"}
+            {otpStep === 'email'
+              ? 'Create an account with your company email'
+              : `Enter the 6-digit code sent to ${email}`}
           </CardDescription>
         </div>
       </CardHeader>
       <CardContent>
-        {resetEmailSent ? (
-          <div className="text-center space-y-4">
-            <CheckCircle2 className="w-16 h-16 text-primary mx-auto" />
-            <p className="text-muted-foreground">
-              We've sent password reset instructions to <strong>{email}</strong>
-            </p>
-            <Button 
-              variant="outline" 
-              onClick={() => { resetForm(); setView('main'); }}
-            >
-              Back to Login
-            </Button>
-          </div>
-        ) : (
-          <form onSubmit={handleForgotPassword} className="space-y-4">
+        {otpStep === 'email' ? (
+          <form onSubmit={handleRegisterSendOtp} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="reset-email">Email</Label>
-              <Input
-                id="reset-email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+              <Label htmlFor="company-name">Company Name</Label>
+              <Input id="company-name" type="text" placeholder="Acme Inc."
+                value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
             </div>
-            <Button 
-              type="submit" 
-              variant="wellness" 
-              size="lg" 
-              className="w-full"
-              disabled={loading}
-            >
-              {loading ? 'Sending...' : 'Send Reset Link'}
+            <div className="space-y-2">
+              <Label htmlFor="full-name">Your Full Name</Label>
+              <Input id="full-name" type="text" placeholder="John Doe"
+                value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="register-email">Company Email</Label>
+              <Input id="register-email" type="email" placeholder="you@company.com"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); validateCompanyEmail(e.target.value); }}
+                className={emailError ? 'border-destructive' : ''} required />
+              {emailError && (
+                <p className="text-sm text-destructive flex items-center gap-1">
+                  <AlertCircle size={14} />{emailError}
+                </p>
+              )}
+              {email && !emailError && isCompanyEmail(email) && (
+                <p className="text-sm text-primary flex items-center gap-1">
+                  <CheckCircle2 size={14} />Valid company email
+                </p>
+              )}
+            </div>
+            <Button type="submit" variant="wellness" size="lg" className="w-full"
+              disabled={loading || !!emailError}>
+              {loading ? 'Sending...' : 'Send Verification Code'}
+            </Button>
+          </form>
+        ) : (
+          <form onSubmit={handleRegisterVerifyOtp} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="otp-code">Verification Code</Label>
+              <Input id="otp-code" type="text" placeholder="123456" maxLength={6}
+                value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} required />
+              <p className="text-xs text-muted-foreground">Didn't receive it?{' '}
+                <button type="button" className="text-primary underline"
+                  onClick={() => supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })
+                    .then(() => toast({ title: 'Code resent!', description: 'Check your inbox.' }))}>
+                  Resend code
+                </button>
+              </p>
+            </div>
+            <Button type="submit" variant="wellness" size="lg" className="w-full" disabled={loading}>
+              {loading ? 'Creating Account...' : 'Verify & Create Account'}
+            </Button>
+            <Button type="button" variant="ghost" className="w-full" onClick={() => setOtpStep('email')}>
+              ← Change email
             </Button>
           </form>
         )}
@@ -665,139 +480,65 @@ const Auth: React.FC = () => {
     </Card>
   );
 
-  const renderRegister = () => (
+  const renderMainView = () => (
     <Card className="shadow-lg border-0">
-      <CardHeader className="text-center pb-2 relative">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="absolute left-4 top-4"
-          onClick={() => { resetForm(); setView('main'); }}
-        >
-          <ArrowLeft size={16} className="mr-1" />
-          Back
-        </Button>
-        <div className="pt-6">
-          <CardTitle className="text-2xl font-bold">Register Your Company</CardTitle>
-          <CardDescription className="text-muted-foreground">
-            Create an account with your company email
-          </CardDescription>
-        </div>
+      <CardHeader className="text-center pb-2">
+        <CardTitle className="text-2xl font-bold">Welcome to HollyAid</CardTitle>
+        <CardDescription className="text-muted-foreground">Your corporate wellness portal</CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleRegister} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="company-name">Company Name</Label>
-            <Input
-              id="company-name"
-              type="text"
-              placeholder="Acme Inc."
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              required
-            />
+      <CardContent className="space-y-4">
+        <Button variant="wellness" size="lg" className="w-full"
+          onClick={() => { resetForm(); setView('employee-login'); }}>
+          <Users size={18} className="mr-2" /> Employee Login
+        </Button>
+        <Button variant="outline" size="lg" className="w-full"
+          onClick={() => { resetForm(); setView('specialist-login'); }}>
+          <HandHeart size={18} className="mr-2 text-primary" /> Specialist Login
+        </Button>
+        <Button variant="outline" size="lg" className="w-full"
+          onClick={() => { resetForm(); setView('company-login'); }}>
+          <Building2 size={18} className="mr-2" /> Company Login
+        </Button>
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">Or</span>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="full-name">Your Full Name</Label>
-            <Input
-              id="full-name"
-              type="text"
-              placeholder="John Doe"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="register-email">Company Email</Label>
-            <Input
-              id="register-email"
-              type="email"
-              placeholder="you@company.com"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                validateCompanyEmail(e.target.value);
-              }}
-              className={emailError ? 'border-destructive' : ''}
-              required
-            />
-            {emailError && (
-              <p className="text-sm text-destructive flex items-center gap-1">
-                <AlertCircle size={14} />
-                {emailError}
-              </p>
-            )}
-            {email && !emailError && isCompanyEmail(email) && (
-              <p className="text-sm text-primary flex items-center gap-1">
-                <CheckCircle2 size={14} />
-                Valid company email
-              </p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="register-password">Password</Label>
-            <Input
-              id="register-password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-            />
-          </div>
-          <Button 
-            type="submit" 
-            variant="wellness" 
-            size="lg" 
-            className="w-full"
-            disabled={loading || !!emailError}
-          >
-            {loading ? 'Creating Account...' : 'Continue to Plan Selection'}
+        </div>
+        <Button variant="secondary" size="lg" className="w-full"
+          onClick={() => { resetForm(); setView('register'); }}>
+          <Building2 size={18} className="mr-2" /> Register as Company
+        </Button>
+        <div className="pt-4 border-t mt-6">
+          <p className="text-sm text-center text-muted-foreground mb-3">New employee? Join your company</p>
+          <Button variant="outline" className="w-full" onClick={() => navigate('/employee-signup')}>
+            Join Now
           </Button>
-          <p className="text-xs text-muted-foreground text-center mt-4">
-            Next, you'll choose your wellness minutes plan.
-          </p>
-        </form>
+        </div>
       </CardContent>
     </Card>
   );
 
   const renderPlanSelection = () => (
     <div className="w-full max-w-4xl">
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        className="mb-4"
-        onClick={() => { resetForm(); setView('main'); }}
-      >
-        <ArrowLeft size={16} className="mr-1" />
-        Back to Login
+      <Button variant="ghost" size="sm" className="mb-4" onClick={() => { resetForm(); setView('main'); }}>
+        <ArrowLeft size={16} className="mr-1" /> Back to Login
       </Button>
-      <PlanSelection 
-        onSelectPlan={handlePlanSelect}
-        loading={loading}
-        selectedPlanId={selectedPlanId}
-      />
+      <PlanSelection onSelectPlan={handlePlanSelect} loading={loading} selectedPlanId={selectedPlanId} />
     </div>
   );
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="w-full py-6 px-8">
-        <div className="flex justify-center">
-          <Logo size="md" />
-        </div>
+        <div className="flex justify-center"><Logo size="md" /></div>
       </header>
-
       <main className="flex-1 flex items-center justify-center px-4 pb-12">
         <div className={`animate-fade-up relative ${view === 'select-plan' ? 'w-full max-w-4xl' : 'w-full max-w-md'}`}>
           {view === 'main' && renderMainView()}
-          {view === 'employee-login' && renderLoginForm('employee')}
-          {view === 'specialist-login' && renderLoginForm('specialist')}
-          {view === 'company-login' && renderLoginForm('company')}
-          {view === 'forgot-password' && renderForgotPassword()}
+          {view === 'employee-login' && renderOtpForm('employee')}
+          {view === 'specialist-login' && renderOtpForm('specialist')}
+          {view === 'company-login' && renderOtpForm('company')}
           {view === 'register' && renderRegister()}
           {view === 'select-plan' && renderPlanSelection()}
         </div>
