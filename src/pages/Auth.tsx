@@ -77,7 +77,10 @@ const Auth: React.FC = () => {
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: true },
+    options: {
+  shouldCreateUser: true,
+  emailRedirectTo: `${window.location.origin}/auth/callback`,
+},
     });
 
     if (error) {
@@ -249,7 +252,10 @@ const Auth: React.FC = () => {
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: true },
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
 
     if (error) {
@@ -384,7 +390,7 @@ const Auth: React.FC = () => {
                   value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} required />
                 <p className="text-xs text-muted-foreground">Didn't receive it?{' '}
                   <button type="button" className="text-primary underline"
-                    onClick={() => supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })
+                    onClick={() => supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: `${window.location.origin}/auth/callback` } })
                       .then(() => toast({ title: 'Code resent!', description: 'Check your inbox.' }))}>
                     Resend code
                   </button>
