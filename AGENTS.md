@@ -1,0 +1,27 @@
+# AGENTS.md
+
+## Cursor Cloud specific instructions
+
+### Overview
+
+Hollyaid is a **React SPA** (Vite + TypeScript + Tailwind CSS + shadcn/ui) for workplace wellness. The backend is entirely **hosted Supabase** (auth, PostgreSQL, Edge Functions) — no local database or backend server to run. Supabase Edge Functions live under `supabase/functions/` and are written in Deno/TypeScript.
+
+### Running the app
+
+- `npm run dev` — starts the Vite dev server on **port 8080** (see `vite.config.ts`).
+- `.env` at the repo root contains the Supabase connection variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`).
+
+### Lint / Type-check / Build
+
+- `npm run lint` — ESLint (flat config in `eslint.config.js`). Pre-existing `@typescript-eslint/no-explicit-any` errors exist in Supabase edge-function files.
+- `npx tsc --noEmit` — TypeScript type check (passes cleanly).
+- `npm run build` — Vite production build.
+
+### Testing
+
+- Playwright is listed as a dependency with a `playwright-fixture.ts` file, but no test files exist yet. If you need to write E2E tests, install browsers first: `npx playwright install --with-deps chromium`.
+
+### Notes
+
+- The package manager is **npm** (`package-lock.json`). A `bun.lockb` also exists but bun is not used in CI.
+- The `/specialists` page queries a Supabase table (`public.specialist_registrations`) that may not exist in every project instance — this is expected behavior for a pre-launch product.
