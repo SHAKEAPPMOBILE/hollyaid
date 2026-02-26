@@ -21,6 +21,13 @@ Hollyaid is a **React SPA** (Vite + TypeScript + Tailwind CSS + shadcn/ui) for w
 
 - Playwright is listed as a dependency with a `playwright-fixture.ts` file, but no test files exist yet. If you need to write E2E tests, install browsers first: `npx playwright install --with-deps chromium`.
 
+### Auth flow
+
+- OTP login uses Supabase magic links; the email redirect URL is `${window.location.origin}/auth/callback`.
+- `AuthCallback.tsx` handles post-auth redirect by checking user role (specialist → `/specialist-dashboard`, company → `/admin`, employee → `/dashboard`).
+- `AuthHashRedirect` in `App.tsx` catches hash-fragment tokens (e.g. `/#access_token=…`) on any page and forwards them to `/auth/callback`.
+- The Supabase project's **Site URL** and **Redirect URLs** must be configured in the Supabase dashboard to include your deployment domain's `/auth/callback` path. If they're not whitelisted, Supabase falls back to the Site URL and the hash redirect handler picks it up.
+
 ### Notes
 
 - The package manager is **npm** (`package-lock.json`). A `bun.lockb` also exists but bun is not used in CI.
