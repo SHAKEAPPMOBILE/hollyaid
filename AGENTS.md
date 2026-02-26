@@ -28,6 +28,26 @@ Hollyaid is a **React SPA** (Vite + TypeScript + Tailwind CSS + shadcn/ui) for w
 - `AuthHashRedirect` in `App.tsx` catches hash-fragment tokens (e.g. `/#access_token=…`) on any page and forwards them to `/auth/callback`.
 - The Supabase project's **Site URL** and **Redirect URLs** must be configured in the Supabase dashboard to include your deployment domain's `/auth/callback` path. If they're not whitelisted, Supabase falls back to the Site URL and the hash redirect handler picks it up.
 
+### Test accounts
+
+Pre-provisioned test accounts exist (created by the `setup-test-accounts` edge function). They use **password auth**, not OTP:
+
+| Email | Password | Role | Dashboard route |
+|---|---|---|---|
+| `test-company@hollyaid.com` | `test1234` | company_admin | `/admin` (redirects to `/dashboard` in current routing) |
+| `test-employee@hollyaid.com` | `test1234` | employee | `/dashboard` |
+| `test-specialist@hollyaid.com` | `test1234` | specialist | `/specialist-dashboard` |
+
+The UI only exposes OTP login. To sign in with a test account programmatically, use the browser console:
+```js
+const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
+await sb.auth.signInWithPassword({ email: 'test-company@hollyaid.com', password: 'test1234' });
+window.location.href = '/dashboard';
+```
+
+Domains in `src/lib/plans.ts` (`hollyaid.com`, `shakeapp.today`, `aptw.us`) bypass Stripe payment for test accounts.
+
 ### Notes
 
 - The package manager is **npm** (`package-lock.json`). A `bun.lockb` also exists but bun is not used in CI.
