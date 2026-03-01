@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { getCompanyAdminAccess } from '@/lib/companyAdminAccess';
 import Logo from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,14 +78,10 @@ const CompleteProfile: React.FC = () => {
       return;
     }
 
-    const { data: company } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('admin_user_id', user.id)
-      .single();
+    const { isCompanyAdmin } = await getCompanyAdminAccess(user.id, user.email);
 
-    if (company) {
-      navigate('/admin');
+    if (isCompanyAdmin) {
+      navigate('/dashboard');
       return;
     }
 

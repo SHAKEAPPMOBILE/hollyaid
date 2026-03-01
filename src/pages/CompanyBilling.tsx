@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { getCompanyAdminAccess } from "@/lib/companyAdminAccess";
 import Logo from "@/components/Logo";
 import MinutesUsageTracker from "@/components/MinutesUsageTracker";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,33 +53,30 @@ const CompanyBilling: React.FC = () => {
     if (!user) return;
 
     try {
-      const { data: roleRow } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "company_admin")
-        .maybeSingle();
+      const { company: adminCompany, isCompanyAdmin, error: companyAccessError } = await getCompanyAdminAccess(user.id, user.email);
 
-      const { data: companyData, error } = await supabase
-        .from("companies")
-        .select("plan_type, minutes_included, minutes_used, subscription_period_end")
-        .eq("admin_user_id", user.id)
-        .maybeSingle();
+      if (companyAccessError) {
+        throw new Error(companyAccessError);
+      }
 
-      if (error) throw error;
-
-      const isOwner = !!companyData;
-      const admin = !!roleRow || isOwner;
-      setIsCompanyAdmin(admin);
-
-      if (!admin) {
+      if (!isCompanyAdmin || !adminCompany?.id) {
         navigate("/dashboard");
         return;
       }
 
-      setCompany((companyData as Company) ?? null);
+      const { data: companyData, error: companyDataError } = await supabase
+        .from("companies")
+        .select("plan_type, minutes_included, minutes_used, subscription_period_end")
+        .eq("id", adminCompany.id)
+        .maybeSingle();
+
+      if (companyDataError) throw companyDataError;
+
+      setIsCompanyAdmin(!!companyData);
+      setCompany((companyData as Company | null) ?? null);
     } catch (e) {
       console.error("Error loading company billing:", e);
+      setIsCompanyAdmin(false);
       setCompany(null);
     } finally {
       setLoading(false);

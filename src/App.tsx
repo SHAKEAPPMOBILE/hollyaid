@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { getCompanyAdminAccess } from "@/lib/companyAdminAccess";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
@@ -27,22 +28,25 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 /**
- * Detects Supabase magic-link hash fragments (e.g. /#access_token=…)
- * and redirects to /auth/callback so the session is properly handled.
+ * Detects Supabase auth callback params/fragments (e.g. access_token, token_hash, code)
+ * and redirects to /auth/callback while preserving them for session exchange.
  */
 const AuthHashRedirect = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    const hash = window.location.hash;
+    const hash = location.hash;
+    const search = location.search;
+    const searchParams = new URLSearchParams(search);
+    const hasAuthHash = hash.includes("access_token") || hash.includes("refresh_token");
+    const hasAuthQuery = searchParams.has("code") || searchParams.has("token_hash");
 
     if (
-      hash &&
-      hash.includes("access_token") &&
+      (hasAuthHash || hasAuthQuery) &&
       location.pathname !== "/auth/callback"
     ) {
-      navigate("/auth/callback", { replace: true });
+      navigate(`/auth/callback${search}${hash}`, { replace: true });
       return;
     }
 
@@ -67,14 +71,9 @@ const AuthHashRedirect = () => {
         return;
       }
 
-      const { data: company } = await supabase
-        .from("companies")
-        .select("subscription_status")
-        .eq("admin_user_id", userId)
-        .maybeSingle();
-
-      if (company) {
-        if (company.subscription_status === "unpaid") {
+      const { company, isCompanyAdmin } = await getCompanyAdminAccess(userId, session.user.email);
+      if (isCompanyAdmin) {
+        if (company?.subscription_status === "unpaid") {
           navigate("/auth", { replace: true });
           return;
         }
@@ -85,7 +84,7 @@ const AuthHashRedirect = () => {
           .eq("user_id", userId)
           .maybeSingle();
 
-        navigate(profile?.job_title ? "/admin" : "/complete-profile", { replace: true });
+        navigate(profile?.job_title ? "/dashboard" : "/complete-profile", { replace: true });
         return;
       }
 
@@ -103,7 +102,7 @@ const AuthHashRedirect = () => {
     return () => {
       mounted = false;
     };
-  }, [navigate, location.pathname]);
+  }, [navigate, location.hash, location.pathname, location.search]);
 
   return null;
 };

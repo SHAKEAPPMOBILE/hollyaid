@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isCompanyEmail, getEmailDomain } from '@/lib/supabase';
+import { getCompanyAdminAccess } from '@/lib/companyAdminAccess';
+import { getAuthRedirectUrl } from '@/lib/authRedirect';
 import { supabase } from '@/integrations/supabase/client';
 import Logo from '@/components/Logo';
 import { Button } from '@/components/ui/button';
@@ -79,6 +81,7 @@ const Auth: React.FC = () => {
       email,
       options: {
         shouldCreateUser: true,
+        emailRedirectTo: getAuthRedirectUrl(),
       },
     });
 
@@ -86,7 +89,7 @@ const Auth: React.FC = () => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       setOtpStep('otp');
-      toast({ title: 'Code sent!', description: `Check your inbox at ${email}` });
+      toast({ title: 'Code sent!', description: `Check your inbox and enter the 6-digit code for ${email}.` });
     }
 
     setLoading(false);
@@ -136,20 +139,23 @@ const Auth: React.FC = () => {
       navigate('/specialist-dashboard');
 
     } else if (userType === 'company') {
-      const { data: company } = await supabase
-        .from('companies')
-        .select('id, subscription_status')
-        .eq('admin_user_id', loggedInUser.id)
-        .single();
+      const { company, isCompanyAdmin, error: companyAccessError } = await getCompanyAdminAccess(loggedInUser.id, loggedInUser.email);
 
-      if (!company) {
+      if (companyAccessError) {
+        toast({ title: 'Login failed', description: `Could not verify company access: ${companyAccessError}`, variant: 'destructive' });
+        await supabase.auth.signOut();
+        setLoading(false);
+        return;
+      }
+
+      if (!isCompanyAdmin) {
         toast({ title: 'Access denied', description: 'This account is not registered as a company admin.', variant: 'destructive' });
         await supabase.auth.signOut();
         setLoading(false);
         return;
       }
 
-      if (company.subscription_status === 'unpaid') {
+      if (company?.subscription_status === 'unpaid') {
         setRegisteredUserId(loggedInUser.id);
         setView('select-plan');
         setLoading(false);
@@ -158,7 +164,7 @@ const Auth: React.FC = () => {
 
       const profileComplete = await checkProfileComplete(loggedInUser.id);
       toast({ title: 'Welcome back!', description: "You've been logged in successfully." });
-      navigate(profileComplete ? '/admin' : '/complete-profile');
+      navigate(profileComplete ? '/dashboard' : '/complete-profile');
 
     } else {
       const { data: specialist } = await supabase
@@ -253,6 +259,7 @@ const Auth: React.FC = () => {
       email,
       options: {
         shouldCreateUser: true,
+        emailRedirectTo: getAuthRedirectUrl(),
       },
     });
 
@@ -260,7 +267,7 @@ const Auth: React.FC = () => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       setOtpStep('otp');
-      toast({ title: 'Code sent!', description: `Check your inbox at ${email}` });
+      toast({ title: 'Code sent!', description: `Check your inbox and enter the 6-digit code for ${email}.` });
     }
 
     setLoading(false);
@@ -386,9 +393,12 @@ const Auth: React.FC = () => {
                 <Label htmlFor="otp-code">Verification Code</Label>
                 <Input id="otp-code" type="text" placeholder="123456" maxLength={6}
                   value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} required />
+                <p className="text-xs text-muted-foreground">
+                  Use the 6-digit code from your email. If a one-time link opens another site, return here and paste the code.
+                </p>
                 <p className="text-xs text-muted-foreground">Didn't receive it?{' '}
                   <button type="button" className="text-primary underline"
-                    onClick={() => supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })
+                    onClick={() => supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: getAuthRedirectUrl() } })
                       .then(() => toast({ title: 'Code resent!', description: 'Check your inbox.' }))}>
                     Resend code
                   </button>
@@ -464,9 +474,12 @@ const Auth: React.FC = () => {
               <Label htmlFor="otp-code">Verification Code</Label>
               <Input id="otp-code" type="text" placeholder="123456" maxLength={6}
                 value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} required />
+              <p className="text-xs text-muted-foreground">
+                Use the 6-digit code from your email. If a one-time link opens another site, return here and paste the code.
+              </p>
               <p className="text-xs text-muted-foreground">Didn't receive it?{' '}
                 <button type="button" className="text-primary underline"
-                  onClick={() => supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })
+                  onClick={() => supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: getAuthRedirectUrl() } })
                     .then(() => toast({ title: 'Code resent!', description: 'Check your inbox.' }))}>
                   Resend code
                 </button>

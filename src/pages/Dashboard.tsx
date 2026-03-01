@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { getCompanyAdminAccess } from '@/lib/companyAdminAccess';
 import Logo from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -140,23 +141,26 @@ const Dashboard: React.FC = () => {
 
       setIsAdmin(!!adminRole);
 
-      // Check if user is company admin (role) OR company owner (admin_user_id)
-      const { data: companyAdminRole } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'company_admin')
-        .maybeSingle();
+      // Resolve company-admin access from owner and employee-link paths.
+      const { company: adminCompany, isCompanyAdmin, error: companyAccessError } = await getCompanyAdminAccess(user.id, user.email);
 
-      const { data: companyData } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('admin_user_id', user.id)
-        .maybeSingle();
+      if (companyAccessError) {
+        console.error('Error resolving company admin access:', companyAccessError);
+      }
 
-      const isOwner = !!companyData;
-      setIsCompanyAdmin(!!companyAdminRole || isOwner);
-      setCompany(companyData ?? null);
+      let companyData: Company | null = null;
+      if (adminCompany?.id) {
+        const { data: resolvedCompany } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('id', adminCompany.id)
+          .maybeSingle();
+
+        companyData = (resolvedCompany as Company | null) ?? null;
+      }
+
+      setIsCompanyAdmin(isCompanyAdmin && !!companyData);
+      setCompany(companyData);
     } catch (error) {
       console.error('Error fetching user data:', error);
     } finally {
