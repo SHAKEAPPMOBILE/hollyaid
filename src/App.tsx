@@ -26,23 +26,27 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 /**
- * Detects Supabase magic-link hash fragments (e.g. /#access_token=…)
- * and redirects to /auth/callback so the session is properly handled.
+ * Detects Supabase auth callback params/fragments (e.g. access_token, token_hash, code)
+ * and redirects to /auth/callback while preserving them for session exchange.
  */
 const AuthHashRedirect = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    const hash = window.location.hash;
+    const hash = location.hash;
+    const search = location.search;
+    const searchParams = new URLSearchParams(search);
+    const hasAuthHash = hash.includes("access_token") || hash.includes("refresh_token");
+    const hasAuthQuery = searchParams.has("code") || searchParams.has("token_hash");
+
     if (
-      hash &&
-      hash.includes("access_token") &&
+      (hasAuthHash || hasAuthQuery) &&
       location.pathname !== "/auth/callback"
     ) {
-      navigate("/auth/callback", { replace: true });
+      navigate(`/auth/callback${search}${hash}`, { replace: true });
     }
-  }, [navigate, location.pathname]);
+  }, [navigate, location.hash, location.pathname, location.search]);
 
   return null;
 };
