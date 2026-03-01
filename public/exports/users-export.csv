@@ -1,0 +1,8 @@
+email,full_name,role,phone_number,job_title,department,notification_preference,onboarding_completed,created_at
+test@example.com,,,,,,,No,2026-02-26
+test-specialist@hollyaid.com,Test Specialist (Demo),specialist,,,,both,Yes,2026-01-28
+test-company@hollyaid.com,Test Company Admin,company_admin,+123123123124124,"Manage employees, view usage, billing",,both,Yes,2026-01-28
+test-employee@hollyaid.com,Test Employee,employee,+123123123124124,"Browse specialists, book sessions",,both,Yes,2026-01-28
+info@hollyaid.com,Leonel Meneses,admin,+351912266098,CEO,All,both,Yes,2026-01-16
+leoneltelesmeneses@gmail.com,Leo Guru,specialist,+351968600945,CEO,,both,Yes,2026-01-15
+contact@shakeapp.today,Maria,"admin,company_admin,employee",+351912266098,HR,All,both,Yes,2026-01-14
