@@ -5,6 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { getCompanyAdminAccess } from "@/lib/companyAdminAccess";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
@@ -45,7 +47,61 @@ const AuthHashRedirect = () => {
       location.pathname !== "/auth/callback"
     ) {
       navigate(`/auth/callback${search}${hash}`, { replace: true });
+      return;
     }
+
+    if (location.pathname !== "/") return;
+
+    let mounted = true;
+
+    const redirectAuthenticatedUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!mounted || !session?.user) return;
+
+      const userId = session.user.id;
+
+      const { data: specialist } = await supabase
+        .from("specialists")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (specialist) {
+        navigate("/specialist-dashboard", { replace: true });
+        return;
+      }
+
+      const { company, isCompanyAdmin } = await getCompanyAdminAccess(userId, session.user.email);
+      if (isCompanyAdmin) {
+        if (company?.subscription_status === "unpaid") {
+          navigate("/auth", { replace: true });
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("job_title")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        navigate(profile?.job_title ? "/dashboard" : "/complete-profile", { replace: true });
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("job_title")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      navigate(profile?.job_title ? "/dashboard" : "/complete-profile", { replace: true });
+    };
+
+    void redirectAuthenticatedUser();
+
+    return () => {
+      mounted = false;
+    };
   }, [navigate, location.hash, location.pathname, location.search]);
 
   return null;
