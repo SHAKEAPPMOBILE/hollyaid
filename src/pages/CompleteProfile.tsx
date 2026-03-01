@@ -78,7 +78,7 @@ const CompleteProfile: React.FC = () => {
       return;
     }
 
-    const { isCompanyAdmin } = await getCompanyAdminAccess(user.id);
+    const { isCompanyAdmin } = await getCompanyAdminAccess(user.id, user.email);
 
     if (isCompanyAdmin) {
       navigate('/dashboard');

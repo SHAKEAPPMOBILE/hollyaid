@@ -48,15 +48,76 @@ serve(async (req) => {
     const user = userData.user;
     if (!user?.id) throw new Error("User not authenticated");
 
-    // Verify caller is company admin and resolve their company.
-    const { data: company, error: companyError } = await supabaseClient
+    // Resolve company by direct ownership first.
+    const { data: ownedCompanies, error: ownedCompanyError } = await supabaseClient
       .from("companies")
       .select("id")
       .eq("admin_user_id", user.id)
-      .single();
+      .limit(1);
 
-    if (companyError || !company?.id) {
+    if (ownedCompanyError) {
+      throw ownedCompanyError;
+    }
+
+    let companyId = ownedCompanies?.[0]?.id ?? null;
+
+    const { data: roleRow, error: roleError } = await supabaseClient
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("role", "company_admin")
+      .maybeSingle();
+
+    if (roleError) {
+      throw roleError;
+    }
+
+    const hasCompanyAdminRole = !!roleRow;
+
+    if (!companyId && hasCompanyAdminRole) {
+      const { data: linkByUser, error: userLinkError } = await supabaseClient
+        .from("company_employees")
+        .select("company_id, accepted_at, invited_at")
+        .eq("user_id", user.id)
+        .eq("status", "accepted")
+        .order("accepted_at", { ascending: false, nullsFirst: false })
+        .order("invited_at", { ascending: false })
+        .limit(1);
+
+      if (userLinkError) {
+        throw userLinkError;
+      }
+
+      companyId = linkByUser?.[0]?.company_id ?? null;
+
+      if (!companyId && user.email) {
+        const normalizedEmail = user.email.toLowerCase();
+        const { data: linkByEmail, error: emailLinkError } = await supabaseClient
+          .from("company_employees")
+          .select("company_id, accepted_at, invited_at")
+          .eq("email", normalizedEmail)
+          .eq("status", "accepted")
+          .order("accepted_at", { ascending: false, nullsFirst: false })
+          .order("invited_at", { ascending: false })
+          .limit(1);
+
+        if (emailLinkError) {
+          throw emailLinkError;
+        }
+
+        companyId = linkByEmail?.[0]?.company_id ?? null;
+      }
+    }
+
+    if (!companyId && !hasCompanyAdminRole) {
       return new Response(JSON.stringify({ error: "Not a company admin" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403,
+      });
+    }
+
+    if (!companyId) {
+      return new Response(JSON.stringify({ error: "Company admin role has no linked company" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 403,
       });
@@ -71,7 +132,7 @@ serve(async (req) => {
     const { data: members, error: membersError } = await supabaseClient
       .from("company_employees")
       .select("user_id")
-      .eq("company_id", company.id)
+      .eq("company_id", companyId)
       .eq("status", "accepted")
       .not("user_id", "is", null);
 

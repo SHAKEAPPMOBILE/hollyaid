@@ -26,7 +26,7 @@ const AuthCallback: React.FC = () => {
 
       if (specialist) { navigate('/specialist-dashboard'); return; }
 
-      const { company, isCompanyAdmin, error: companyAccessError } = await getCompanyAdminAccess(userId);
+      const { company, isCompanyAdmin, error: companyAccessError } = await getCompanyAdminAccess(userId, session.user.email);
 
       if (companyAccessError) {
         setError(`Could not verify company access: ${companyAccessError}`);

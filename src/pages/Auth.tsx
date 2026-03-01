@@ -138,7 +138,7 @@ const Auth: React.FC = () => {
       navigate('/specialist-dashboard');
 
     } else if (userType === 'company') {
-      const { company, isCompanyAdmin, error: companyAccessError } = await getCompanyAdminAccess(loggedInUser.id);
+      const { company, isCompanyAdmin, error: companyAccessError } = await getCompanyAdminAccess(loggedInUser.id, loggedInUser.email);
 
       if (companyAccessError) {
         toast({ title: 'Login failed', description: `Could not verify company access: ${companyAccessError}`, variant: 'destructive' });
