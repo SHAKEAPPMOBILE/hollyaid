@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isCompanyEmail, getEmailDomain } from '@/lib/supabase';
+import { getCompanyAdminAccess } from '@/lib/companyAdminAccess';
 import { supabase } from '@/integrations/supabase/client';
 import Logo from '@/components/Logo';
 import { Button } from '@/components/ui/button';
@@ -137,20 +138,23 @@ const Auth: React.FC = () => {
       navigate('/specialist-dashboard');
 
     } else if (userType === 'company') {
-      const { data: company } = await supabase
-        .from('companies')
-        .select('id, subscription_status')
-        .eq('admin_user_id', loggedInUser.id)
-        .single();
+      const { company, isCompanyAdmin, error: companyAccessError } = await getCompanyAdminAccess(loggedInUser.id);
 
-      if (!company) {
+      if (companyAccessError) {
+        toast({ title: 'Login failed', description: `Could not verify company access: ${companyAccessError}`, variant: 'destructive' });
+        await supabase.auth.signOut();
+        setLoading(false);
+        return;
+      }
+
+      if (!isCompanyAdmin) {
         toast({ title: 'Access denied', description: 'This account is not registered as a company admin.', variant: 'destructive' });
         await supabase.auth.signOut();
         setLoading(false);
         return;
       }
 
-      if (company.subscription_status === 'unpaid') {
+      if (company?.subscription_status === 'unpaid') {
         setRegisteredUserId(loggedInUser.id);
         setView('select-plan');
         setLoading(false);
@@ -159,7 +163,7 @@ const Auth: React.FC = () => {
 
       const profileComplete = await checkProfileComplete(loggedInUser.id);
       toast({ title: 'Welcome back!', description: "You've been logged in successfully." });
-      navigate(profileComplete ? '/admin' : '/complete-profile');
+      navigate(profileComplete ? '/dashboard' : '/complete-profile');
 
     } else {
       const { data: specialist } = await supabase

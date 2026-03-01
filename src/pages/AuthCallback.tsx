@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { getCompanyAdminAccess } from '@/lib/companyAdminAccess';
 import Logo from '@/components/Logo';
 import { Loader2 } from 'lucide-react';
 
@@ -25,13 +26,18 @@ const AuthCallback: React.FC = () => {
 
       if (specialist) { navigate('/specialist-dashboard'); return; }
 
-      const { data: company } = await supabase
-        .from('companies').select('id, subscription_status').eq('admin_user_id', userId).maybeSingle();
+      const { company, isCompanyAdmin, error: companyAccessError } = await getCompanyAdminAccess(userId);
 
-      if (company) {
-        if (company.subscription_status === 'unpaid') { navigate('/auth'); return; }
+      if (companyAccessError) {
+        setError(`Could not verify company access: ${companyAccessError}`);
+        setTimeout(() => navigate('/auth'), 3000);
+        return;
+      }
+
+      if (isCompanyAdmin) {
+        if (company?.subscription_status === 'unpaid') { navigate('/auth'); return; }
         const { data: profile } = await supabase.from('profiles').select('job_title').eq('user_id', userId).single();
-        navigate(profile?.job_title ? '/admin' : '/complete-profile');
+        navigate(profile?.job_title ? '/dashboard' : '/complete-profile');
         return;
       }
 
