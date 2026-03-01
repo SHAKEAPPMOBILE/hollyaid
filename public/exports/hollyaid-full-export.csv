@@ -1,0 +1,55 @@
+
+=== SPECIALISTS ===
+full_name,email,specialty,hourly_rate,rate_tier,is_active,phone_number,website,has_set_availability,invitation_accepted,created_at
+Test too,leofreemaninuniverse@gmail.com,all good,25.00,standard,false,,,false,No,2026-02-09
+Dr Mystique test,staymystique@gmail.com,all,25.00,standard,false,,,false,No,2026-02-09
+Test Specialist (Demo),test-specialist@hollyaid.com,Mental Health Counselor,60.00,standard,true,,,false,Yes,2026-01-28
+Hélène Dufour,helene_dufour@live.fr,Yoga Therapy,60.00,standard,true,,,false,No,2026-01-27
+Lauren Hernandez,thespiritualsideofnursing@gmail.com,Nutrition,60.00,standard,true,,,false,No,2026-01-27
+Sofia Gaia Rose,sofiagaiarose@gmail.com,Nutrition,60.00,standard,true,,https://www.thesoteriafoundation.life/,false,No,2026-01-27
+Anjali,494anjali@gmail.com,Nutrition,60.00,standard,true,,https://www.the-wellness-studios.com/,false,No,2026-01-27
+Marco Barbaro,barbarom888@gmail.com,Energy Healing,60.00,standard,true,,,false,No,2026-01-27
+Kristen Yates,kyates8@gmail.com,Life Coaching,60.00,standard,true,,https://www.kristenyates.com,false,No,2026-01-27
+Deanna Brolly,justmovefitness@gmail.com,Nutrition,60.00,standard,true,,https://www.justmovefitness.com,false,No,2026-01-27
+Martina Bruttomesso,martina.bruttomesso@gmail.com,Yoga Therapy,60.00,standard,true,,,false,No,2026-01-27
+Marta Sandri,connect@martacsandri.com,Life Coaching,60.00,standard,true,,https://martacsandri.com/,false,No,2026-01-27
+Irina Ancevska,unearththis.ia@gmail.com,Ayurveda,60.00,standard,true,,https://unearththis.com,false,No,2026-01-27
+Adora Shortridge,adora.shortridge@gmail.com,Yoga Therapy,60.00,standard,true,,,false,No,2026-01-27
+Aisha Makara,makaracreator001@gmail.com,Life Coaching,60.00,standard,true,,https://aisha.today/aboutme,false,No,2026-01-27
+Dominique Valcourt,dominique@aptw.ys,Breathwork,60.00,standard,true,,,false,No,2026-01-27
+Margaux Namy,margauxcsnamy@hotmail.com,Yoga Therapy,60.00,standard,true,,https://www.anjaneho.com,false,No,2026-01-27
+Samantha Berni,berni.samantha@gmail.com,Yoga Therapy,60.00,standard,true,,https://www.rootsyoga.it/,false,No,2026-01-27
+Jessica Reynolds,jessicafitcamprancho@gmail.com,Nutrition,60.00,standard,true,,,false,No,2026-01-27
+Monica Arcoya,monica.arcoya@gmail.com,Yoga Therapy,60.00,standard,true,,https://www.monicaarcoya.com/,false,No,2026-01-27
+Hana Ajam,hanaajam@icloud.com,Yoga Therapy,60.00,standard,true,,,false,No,2026-01-27
+Jane Albertson,jane.albertson@gmail.com,Yoga Therapy,60.00,standard,true,,,false,No,2026-01-27
+Sonia Frydrych,FRYDRYCH.SONIA@GMAIL.COM,Breathwork,60.00,standard,true,,,false,No,2026-01-27
+Hélène Dufour (duplicate),helene.dufour.55@gmail.com,Yoga Therapy,60.00,standard,true,,,false,No,2026-01-27
+Tara Logel,taral@lovelightandsage.com,Energy Healing,60.00,standard,true,,https://www.LoveLightandSage.com,false,No,2026-01-27
+Samanta Duggal,Samantaduggal7@gmail.com,Yoga Therapy,60.00,standard,true,,https://www.samantaduggal.com,false,No,2026-01-27
+Sarah Maria Winterhalter,soulinbloom108@gmail.com,Energy Healing,60.00,standard,true,,https://www.soul-in-bloom.com,false,No,2026-01-27
+Christina McGlinchy,mcglinchy5523@gmail.com,Yoga Therapy,60.00,standard,true,,https://mcglinchy5523.wixsite.com/yogabio,false,No,2026-01-27
+Tina L Mulinaro,tina.soulheart@gmail.com,Stress Management Therapy,60.00,standard,true,,,false,No,2026-01-27
+Nuno Veloso,nuno@dragonwithin.co,Executive Coaching,60.00,standard,true,,https://www.dragonwithin.co/,false,No,2026-01-27
+Katia Davis,katiamdavis@gmail.com,Energy Healing,60.00,standard,true,,https://innerrainbowhealing.com/,false,No,2026-01-27
+
+=== COMPANIES ===
+name,email_domain,plan_type,subscription_status,is_paid,max_employees,minutes_included,minutes_used,is_test_account,created_at
+Test Company (Demo),test-hollyaid.com,growth,active,true,100,1500,0,true,2026-01-28
+Hollyaid,hollyaid.com,growth,active,true,100,1500,0,true,2026-01-16
+SHAKEapp Inc.,shakeapp.today,growth,active,true,100,1500,210,true,2026-01-14
+
+=== EMPLOYEES ===
+email,company_name,status,accepted_at,auto_joined
+contact@shakeapp.today,SHAKEapp Inc.,accepted,2026-01-31,true
+test-employee@hollyaid.com,Test Company (Demo),accepted,2026-01-28,false
+
+=== USERS / PROFILES ===
+email,full_name,role,phone_number,job_title,department,onboarding_completed,created_at
+test@example.com,,,,,,No,2026-02-26
+test-specialist@hollyaid.com,Test Specialist (Demo),specialist,,,,Yes,2026-01-28
+test-company@hollyaid.com,Test Company Admin,company_admin,+123123123124124,Manage employees,,Yes,2026-01-28
+test-employee@hollyaid.com,Test Employee,employee,+123123123124124,Browse specialists,,Yes,2026-01-28
+info@hollyaid.com,Leonel Meneses,admin,+351912266098,CEO,All,Yes,2026-01-16
+leoneltelesmeneses@gmail.com,Leo Guru,specialist,+351968600945,CEO,,Yes,2026-01-15
+contact@shakeapp.today,Maria,"admin,company_admin,employee",+351912266098,HR,All,Yes,2026-01-14
