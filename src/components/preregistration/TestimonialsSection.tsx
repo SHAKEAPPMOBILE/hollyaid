@@ -14,7 +14,6 @@ export function TestimonialsSection() {
   const [specialists, setSpecialists] = useState<SpecialistCarouselItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
-  const [isCarouselPaused, setIsCarouselPaused] = useState(false);
   const carouselSpecialists = useMemo(() => {
     const minSeamlessItems = 10;
 
@@ -92,12 +91,12 @@ export function TestimonialsSection() {
     if (!carouselApi || carouselSpecialists.length < 2) return;
 
     const autoplayId = window.setInterval(() => {
-      if (isCarouselPaused || document.hidden) return;
+      if (document.hidden) return;
       carouselApi.scrollNext();
-    }, 3200);
+    }, 2400);
 
     return () => window.clearInterval(autoplayId);
-  }, [carouselApi, carouselSpecialists.length, isCarouselPaused]);
+  }, [carouselApi, carouselSpecialists.length]);
 
   return (
     <section id="testimonials-section" className="py-10 sm:py-12 lg:py-14 bg-muted/30 px-4 sm:px-6">
@@ -136,8 +135,6 @@ export function TestimonialsSection() {
               setApi={setCarouselApi}
               opts={{ align: "start", loop: carouselSpecialists.length > 1 }}
               className="w-full"
-              onMouseEnter={() => setIsCarouselPaused(true)}
-              onMouseLeave={() => setIsCarouselPaused(false)}
             >
               <CarouselContent>
                 {carouselSpecialists.map((specialist, index) => (
