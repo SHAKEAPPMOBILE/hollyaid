@@ -201,7 +201,7 @@ const Auth: React.FC = () => {
             <CardDescription className="text-muted-foreground">
               {otpStep === 'email'
                 ? `Sign in to access your ${descriptions[type]}`
-                : 'Check your email (spam too) to continue on Hollyaid! You can close this window! Thank you!'}
+                : 'Check your email ✉️ (spam too) to continue on Hollyaid! You can close this window! Thank you!'}
             </CardDescription>
           </div>
         </CardHeader>
