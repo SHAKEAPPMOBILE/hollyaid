@@ -1,39 +1,34 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { preregSupabase } from "@/components/preregistration/supabase";
 import { Link } from "react-router-dom";
+import {
+  Carousel,
+  CarouselApi,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 
 interface Specialist {
   id: string;
   full_name: string;
   specialty: string;
-  profile_photo_url: string | null;
+  avatar_url: string | null;
   bio: string | null;
-  languages: string[] | string | null;
-  time_zone: string | null;
-  created_at: string;
 }
-
-const parseLanguages = (languages: string[] | string | null): string[] => {
-  if (!languages) return [];
-  if (Array.isArray(languages)) return languages;
-  try {
-    const parsed = JSON.parse(languages);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return typeof languages === "string"
-      ? languages.split(",").map((lang) => lang.trim().replace(/[\[\]\"']/g, ""))
-      : [];
-  }
-};
 
 export function TestimonialsSection() {
   const [isVisible, setIsVisible] = useState(false);
   const [specialists, setSpecialists] = useState<Specialist[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+  const [isCarouselPaused, setIsCarouselPaused] = useState(false);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -48,21 +43,73 @@ export function TestimonialsSection() {
 
     const fetchSpecialists = async () => {
       try {
-        const { data, error } = await preregSupabase
-          .from("specialist_registrations")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(3);
+        const { data: publicData, error: publicError } = await supabase
+          .from("specialists_public")
+          .select("id, full_name, specialty, avatar_url, bio, is_active")
+          .not("full_name", "is", null)
+          .order("is_active", { ascending: false })
+          .order("full_name", { ascending: true });
 
-        if (error) {
-          setLoadError(error.message);
-          console.error("Error fetching specialists:", error);
-          setSpecialists([]);
+        const publicSpecialists = (publicData ?? [])
+          .filter(
+            (specialist): specialist is {
+              id: string;
+              full_name: string;
+              specialty: string;
+              avatar_url: string | null;
+              bio: string | null;
+            } => Boolean(specialist.id && specialist.full_name && specialist.specialty),
+          )
+          .map((specialist) => ({
+            id: specialist.id,
+            full_name: specialist.full_name,
+            specialty: specialist.specialty,
+            avatar_url: specialist.avatar_url,
+            bio: specialist.bio,
+          }));
+
+        if (publicSpecialists.length > 0) {
+          setLoadError(null);
+          setSpecialists(publicSpecialists);
           return;
         }
 
-        setLoadError(null);
-        setSpecialists((data ?? []) as Specialist[]);
+        const { data: preregData, error: preregError } = await preregSupabase
+          .from("specialist_registrations")
+          .select("id, full_name, specialty, profile_photo_url, bio")
+          .order("created_at", { ascending: false });
+
+        const preregSpecialists = (preregData ?? [])
+          .filter(
+            (specialist): specialist is {
+              id: string;
+              full_name: string;
+              specialty: string;
+              profile_photo_url: string | null;
+              bio: string | null;
+            } => Boolean(specialist.id && specialist.full_name && specialist.specialty),
+          )
+          .map((specialist) => ({
+            id: specialist.id,
+            full_name: specialist.full_name,
+            specialty: specialist.specialty,
+            avatar_url: specialist.profile_photo_url,
+            bio: specialist.bio,
+          }));
+
+        if (preregSpecialists.length > 0) {
+          setLoadError(null);
+          setSpecialists(preregSpecialists);
+          return;
+        }
+
+        if (publicError && preregError) {
+          console.error("Error fetching specialists from both sources:", { publicError, preregError });
+          setLoadError("Unable to load specialists right now.");
+        } else {
+          setLoadError(null);
+        }
+        setSpecialists([]);
       } catch (error) {
         console.error("Error fetching specialists:", error);
         setLoadError(error instanceof Error ? error.message : "Unknown error");
@@ -76,6 +123,17 @@ export function TestimonialsSection() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (!carouselApi || specialists.length < 2) return;
+
+    const autoplayId = window.setInterval(() => {
+      if (isCarouselPaused || document.hidden) return;
+      carouselApi.scrollNext();
+    }, 3200);
+
+    return () => window.clearInterval(autoplayId);
+  }, [carouselApi, isCarouselPaused, specialists.length]);
+
   return (
     <section id="testimonials-section" className="py-16 sm:py-20 lg:py-24 bg-muted/30 px-4 sm:px-6">
       <div className="container mx-auto max-w-7xl">
@@ -84,111 +142,103 @@ export function TestimonialsSection() {
             isVisible ? "animate-slide-in-up" : "opacity-0"
           }`}
         >
-          <h2 className="text-3xl font-bold text-foreground mb-4">Specialists Who have already joined</h2>
+          <h2 className="text-3xl font-bold text-foreground mb-4">Meet Our Wellness Specialists</h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            Join a community of practitioners who are making a real difference in workplace wellness.
+            Browse specialists on Hollyaid. The carousel auto-scrolls so visitors can quickly discover your team.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {isLoading ? (
-            Array(3)
+        {isLoading ? (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {Array(4)
               .fill(0)
               .map((_, index) => (
-                <Card
-                  key={index}
-                  className="border-border rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 bg-card"
-                >
-                  <CardContent className="p-8">
+                <Card key={index} className="border-border rounded-2xl overflow-hidden bg-card">
+                  <CardContent className="p-6">
                     <div className="animate-pulse">
-                      <div className="flex flex-col items-center mb-6">
-                        <div className="w-24 h-24 rounded-full bg-muted/50 mb-4"></div>
-                        <div className="h-5 w-32 bg-muted/50 rounded mb-2"></div>
-                        <div className="h-4 w-24 bg-muted/50 rounded"></div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="h-3 bg-muted/50 rounded w-full"></div>
-                        <div className="h-3 bg-muted/50 rounded w-5/6"></div>
-                        <div className="h-3 bg-muted/50 rounded w-2/3"></div>
-                      </div>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <div className="h-6 w-16 bg-muted/50 rounded-full"></div>
-                        <div className="h-6 w-20 bg-muted/50 rounded-full"></div>
-                      </div>
-                      <div className="mt-4 h-6 w-32 bg-muted/50 rounded-full mx-auto"></div>
+                      <div className="w-20 h-20 rounded-full bg-muted/50 mx-auto mb-4"></div>
+                      <div className="h-5 w-32 bg-muted/50 rounded mb-2 mx-auto"></div>
+                      <div className="h-4 w-24 bg-muted/50 rounded mx-auto"></div>
+                      <div className="mt-4 h-3 bg-muted/50 rounded w-full"></div>
+                      <div className="mt-2 h-3 bg-muted/50 rounded w-5/6 mx-auto"></div>
                     </div>
                   </CardContent>
                 </Card>
-              ))
-          ) : loadError ? (
-            <div className="col-span-3 text-center py-12 text-muted-foreground">
-              Unable to load specialists. {loadError}
-            </div>
-          ) : specialists.length > 0 ? (
-            specialists.map((specialist, index) => (
-              <Card
-                key={specialist.id}
-                className={`border-border rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 bg-card ${
-                  isVisible ? "animate-slide-in-up" : "opacity-0"
-                }`}
-                style={{ animationDelay: `${index * 200}ms` }}
-              >
-                <CardContent className="p-8">
-                  <div className="flex flex-col items-center mb-6">
-                    <div className="relative w-24 h-24 mb-4">
-                      {specialist.profile_photo_url ? (
-                        <img
-                          src={specialist.profile_photo_url}
-                          alt={specialist.full_name}
-                          className="w-full h-full rounded-full object-cover border-4 border-primary/10"
-                        />
-                      ) : (
-                        <div className="w-full h-full rounded-full bg-muted flex items-center justify-center text-3xl font-bold text-muted-foreground">
-                          {specialist.full_name?.charAt(0) ?? "S"}
+              ))}
+          </div>
+        ) : loadError ? (
+          <div className="text-center py-12 text-muted-foreground">Unable to load specialists. {loadError}</div>
+        ) : specialists.length > 0 ? (
+          <div className="relative">
+            <Carousel
+              setApi={setCarouselApi}
+              opts={{ align: "start", loop: specialists.length > 1 }}
+              className="w-full"
+              onMouseEnter={() => setIsCarouselPaused(true)}
+              onMouseLeave={() => setIsCarouselPaused(false)}
+            >
+              <CarouselContent>
+                {specialists.map((specialist, index) => (
+                  <CarouselItem
+                    key={specialist.id}
+                    className={`sm:basis-1/2 lg:basis-1/3 xl:basis-1/4 ${
+                      isVisible ? "animate-slide-in-up" : "opacity-0"
+                    }`}
+                    style={{ animationDelay: `${index * 80}ms` }}
+                  >
+                    <Card className="border-border rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 bg-card h-full">
+                      <CardHeader className="pb-2">
+                        <div className="flex flex-col items-center text-center">
+                          <div className="relative w-20 h-20 mb-4">
+                            {specialist.avatar_url ? (
+                              <img
+                                src={specialist.avatar_url}
+                                alt={specialist.full_name}
+                                className="w-full h-full rounded-full object-cover border-4 border-primary/10"
+                              />
+                            ) : (
+                              <div className="w-full h-full rounded-full bg-muted flex items-center justify-center text-2xl font-bold text-muted-foreground">
+                                {specialist.full_name.charAt(0)}
+                              </div>
+                            )}
+                          </div>
+                          <h3 className="text-lg font-bold text-foreground">{specialist.full_name}</h3>
+                          <p className="text-primary font-medium">{specialist.specialty}</p>
                         </div>
-                      )}
-                    </div>
-                    <div className="text-center">
-                      <h3 className="text-xl font-bold text-foreground">{specialist.full_name}</h3>
-                      <p className="text-primary font-medium">{specialist.specialty}</p>
-                    </div>
-                  </div>
+                      </CardHeader>
+                      <CardContent className="pt-0 pb-6">
+                        {specialist.bio ? (
+                          <p className="text-sm text-muted-foreground text-center leading-relaxed line-clamp-3">
+                            {specialist.bio}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground text-center leading-relaxed">
+                            Dedicated to helping teams thrive through accessible workplace wellness support.
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
 
-                  <div className="space-y-4">
-                    {(() => {
-                      const langs = parseLanguages(specialist.languages);
-                      if (langs.length === 0) return null;
-                      return (
-                        <div className="flex flex-wrap justify-center gap-2">
-                          {langs.map((lang, i) => (
-                            <span
-                              key={i}
-                              className="text-xs bg-gray-500 text-secondary-foreground px-3 py-1 rounded-full font-medium"
-                            >
-                              {lang}
-                            </span>
-                          ))}
-                        </div>
-                      );
-                    })()}
+              {specialists.length > 1 && (
+                <>
+                  <CarouselPrevious className="left-2 hidden sm:flex bg-background/90 backdrop-blur-sm" />
+                  <CarouselNext className="right-2 hidden sm:flex bg-background/90 backdrop-blur-sm" />
+                </>
+              )}
+            </Carousel>
 
-                    {specialist.time_zone && (
-                      <div className="text-center">
-                        <div className="inline-flex items-center text-xs text-muted-foreground bg-muted/50 px-3 py-1 rounded-full">
-                          <span className="truncate">{specialist.time_zone.split("(")[0].trim()}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            <div className="col-span-3 text-center py-12 text-muted-foreground">
-              No specialists found. Be the first to join our community!
-            </div>
-          )}
-        </div>
+            <p className="mt-4 text-center text-xs text-muted-foreground">
+              Auto-scrolling carousel ({specialists.length} specialists). Hover to pause.
+            </p>
+          </div>
+        ) : (
+          <div className="text-center py-12 text-muted-foreground">
+            No specialists found yet. Add specialist profiles to populate this section.
+          </div>
+        )}
 
         <div className="mt-12 text-center">
           <Button asChild variant="outline" className="group">
