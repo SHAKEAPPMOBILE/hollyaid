@@ -11,7 +11,7 @@ import {
 interface Specialist {
   id: string;
   full_name: string;
-  avatar_url: string | null;
+  avatar_url: string;
 }
 
 export function TestimonialsSection() {
@@ -39,6 +39,7 @@ export function TestimonialsSection() {
           .from("specialists_public")
           .select("id, full_name, avatar_url, is_active")
           .not("full_name", "is", null)
+          .not("avatar_url", "is", null)
           .order("is_active", { ascending: false })
           .order("full_name", { ascending: true });
 
@@ -54,8 +55,14 @@ export function TestimonialsSection() {
             (specialist): specialist is {
               id: string;
               full_name: string;
-              avatar_url: string | null;
-            } => Boolean(specialist.id && specialist.full_name),
+              avatar_url: string;
+            } =>
+              Boolean(
+                specialist.id &&
+                  specialist.full_name &&
+                  typeof specialist.avatar_url === "string" &&
+                  specialist.avatar_url.trim().length > 0,
+              ),
           )
           .map((specialist) => ({
             id: specialist.id,
@@ -99,7 +106,7 @@ export function TestimonialsSection() {
         >
           <h2 className="text-3xl font-bold text-foreground mb-4">Meet Our Specialists</h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            A quick preview of specialists on Hollyaid. The carousel auto-scrolls automatically.
+            A quick preview of specialists with profile photos on Hollyaid. The carousel auto-scrolls automatically.
           </p>
         </div>
 
@@ -145,17 +152,11 @@ export function TestimonialsSection() {
                       <CardContent className="p-6">
                         <div className="flex flex-col items-center text-center">
                           <div className="relative w-24 h-24 mb-4">
-                            {specialist.avatar_url ? (
-                              <img
-                                src={specialist.avatar_url}
-                                alt={specialist.full_name}
-                                className="w-full h-full rounded-full object-cover border-4 border-primary/10"
-                              />
-                            ) : (
-                              <div className="w-full h-full rounded-full bg-muted flex items-center justify-center text-3xl font-bold text-muted-foreground">
-                                {specialist.full_name.charAt(0)}
-                              </div>
-                            )}
+                            <img
+                              src={specialist.avatar_url}
+                              alt={specialist.full_name}
+                              className="w-full h-full rounded-full object-cover border-4 border-primary/10"
+                            />
                           </div>
                           <h3 className="text-lg font-semibold text-foreground leading-tight">{specialist.full_name}</h3>
                         </div>
@@ -172,7 +173,7 @@ export function TestimonialsSection() {
           </div>
         ) : (
           <div className="text-center py-12 text-muted-foreground">
-            No specialists available right now.
+            No specialists with profile photos available right now.
           </div>
         )}
       </div>
