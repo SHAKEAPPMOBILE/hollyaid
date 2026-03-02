@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isCompanyEmail, getEmailDomain } from '@/lib/supabase';
-import { getCompanyAdminAccess } from '@/lib/companyAdminAccess';
 import { getAuthRedirectUrl } from '@/lib/authRedirect';
 import { supabase } from '@/integrations/supabase/client';
 import Logo from '@/components/Logo';
@@ -32,7 +31,6 @@ const Auth: React.FC = () => {
   const [redirectingToPayment, setRedirectingToPayment] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string>('');
   const [registeredUserId, setRegisteredUserId] = useState<string | null>(null);
-  const [userType, setUserType] = useState<'employee' | 'specialist' | 'company'>('employee');
 
   const validateCompanyEmail = (email: string) => {
     if (!email) { setEmailError(''); return; }
@@ -54,28 +52,9 @@ const Auth: React.FC = () => {
     setRegisteredUserId(null);
   };
 
-  const checkProfileComplete = async (userId: string): Promise<boolean> => {
-    const { data }: any = await supabase
-      .from('profiles')
-      .select('job_title')
-      .eq('user_id', userId)
-      .single();
-    return !!data?.job_title;
-  };
-
-  const ensureSessionReady = async () => {
-    for (let i = 0; i < 5; i++) {
-      const { data } = await supabase.auth.getSession();
-      if (data.session?.access_token) return true;
-      await new Promise((r) => setTimeout(r, 150));
-    }
-    return false;
-  };
-
-  const handleSendOtp = async (e: React.FormEvent, type: 'employee' | 'specialist' | 'company') => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setUserType(type);
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
@@ -89,157 +68,7 @@ const Auth: React.FC = () => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       setOtpStep('otp');
-      toast({ title: 'Code sent!', description: `Check your inbox and enter the 6-digit code for ${email}.` });
-    }
-
-    setLoading(false);
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    const { data, error } = await supabase.auth.verifyOtp({
-      email,
-      token: otp,
-      type: 'email',
-    });
-
-    if (error || !data.user) {
-      toast({ title: 'Invalid code', description: error?.message || 'Please try again.', variant: 'destructive' });
-      setLoading(false);
-      return;
-    }
-
-    const sessionReady = await ensureSessionReady();
-    if (!sessionReady) {
-      toast({ title: 'Login failed', description: 'Session not ready. Please try again.', variant: 'destructive' });
-      await supabase.auth.signOut();
-      setLoading(false);
-      return;
-    }
-
-    const loggedInUser = data.user;
-
-    if (userType === 'specialist') {
-      const { data: specialist, error: specialistError } = await supabase
-        .from('specialists')
-        .select('id')
-        .eq('user_id', loggedInUser.id)
-        .maybeSingle();
-
-      if (specialistError || !specialist) {
-        toast({ title: 'Access denied', description: 'This account is not registered as a specialist.', variant: 'destructive' });
-        await supabase.auth.signOut();
-        setLoading(false);
-        return;
-      }
-
-      toast({ title: 'Welcome back!', description: "You've been logged in successfully." });
-      navigate('/specialist-dashboard');
-
-    } else if (userType === 'company') {
-      const { company, isCompanyAdmin, error: companyAccessError } = await getCompanyAdminAccess(loggedInUser.id, loggedInUser.email);
-
-      if (companyAccessError) {
-        toast({ title: 'Login failed', description: `Could not verify company access: ${companyAccessError}`, variant: 'destructive' });
-        await supabase.auth.signOut();
-        setLoading(false);
-        return;
-      }
-
-      if (!isCompanyAdmin) {
-        toast({ title: 'Access denied', description: 'This account is not registered as a company admin.', variant: 'destructive' });
-        await supabase.auth.signOut();
-        setLoading(false);
-        return;
-      }
-
-      if (company?.subscription_status === 'unpaid') {
-        setRegisteredUserId(loggedInUser.id);
-        setView('select-plan');
-        setLoading(false);
-        return;
-      }
-
-      const profileComplete = await checkProfileComplete(loggedInUser.id);
-      toast({ title: 'Welcome back!', description: "You've been logged in successfully." });
-      navigate(profileComplete ? '/dashboard' : '/complete-profile');
-
-    } else {
-      const { data: specialist } = await supabase
-        .from('specialists')
-        .select('id')
-        .eq('user_id', loggedInUser.id)
-        .single();
-
-      if (specialist) {
-        toast({ title: 'Wrong login', description: 'Please use specialist login for your account.', variant: 'destructive' });
-        await supabase.auth.signOut();
-        setLoading(false);
-        return;
-      }
-
-      const emailDomain = getEmailDomain(email);
-      if (emailDomain) {
-        const { data: existingLink } = await supabase
-          .from('company_employees')
-          .select('id')
-          .eq('user_id', loggedInUser.id)
-          .maybeSingle();
-
-        if (!existingLink) {
-          const { data: matchingCompany } = await supabase
-            .from('companies')
-            .select('id, name')
-            .eq('email_domain', emailDomain)
-            .eq('subscription_status', 'active')
-            .maybeSingle();
-
-          if (matchingCompany) {
-            const { data: existingInvite } = await supabase
-              .from('company_employees')
-              .select('id')
-              .eq('company_id', matchingCompany.id)
-              .eq('email', email.toLowerCase())
-              .maybeSingle();
-
-            if (existingInvite) {
-              await supabase.from('company_employees').update({
-                user_id: loggedInUser.id,
-                status: 'accepted',
-                accepted_at: new Date().toISOString(),
-              }).eq('id', existingInvite.id);
-            } else {
-              await supabase.from('company_employees').insert({
-                company_id: matchingCompany.id,
-                email: email.toLowerCase(),
-                user_id: loggedInUser.id,
-                status: 'accepted',
-                accepted_at: new Date().toISOString(),
-                auto_joined: true,
-              });
-            }
-
-            const { data: existingRole } = await supabase
-              .from('user_roles')
-              .select('id')
-              .eq('user_id', loggedInUser.id)
-              .eq('role', 'employee')
-              .maybeSingle();
-
-            if (!existingRole) {
-              await supabase.from('user_roles').insert({ user_id: loggedInUser.id, role: 'employee' });
-            }
-
-            toast({ title: 'Welcome!', description: `You've been added to ${matchingCompany.name}` });
-          }
-        }
-      }
-
-      const profileComplete = await checkProfileComplete(loggedInUser.id);
-      toast({ title: 'Welcome back!', description: "You've been logged in successfully." });
-      navigate(profileComplete ? '/dashboard' : '/complete-profile');
+      toast({ title: 'Magic link sent!', description: `Check your inbox (and spam) for the login link sent to ${email}.` });
     }
 
     setLoading(false);
@@ -361,22 +190,24 @@ const Auth: React.FC = () => {
     return (
       <Card className="shadow-lg border-0">
         <CardHeader className="text-center pb-2 relative">
-          <Button variant="ghost" size="sm" className="absolute left-4 top-4"
-            onClick={() => { resetForm(); setView('main'); }}>
-            <ArrowLeft size={16} className="mr-1" /> Back
-          </Button>
+          {otpStep === 'email' && (
+            <Button variant="ghost" size="sm" className="absolute left-4 top-4"
+              onClick={() => { resetForm(); setView('main'); }}>
+              <ArrowLeft size={16} className="mr-1" /> Back
+            </Button>
+          )}
           <div className="pt-6">
             <CardTitle className="text-2xl font-bold">{titles[type]}</CardTitle>
             <CardDescription className="text-muted-foreground">
               {otpStep === 'email'
                 ? `Sign in to access your ${descriptions[type]}`
-                : `Enter the 6-digit code sent to ${email}`}
+                : `Check your email for the magic link login sent to ${email}. Please check spam too.`}
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
           {otpStep === 'email' ? (
-            <form onSubmit={(e) => handleSendOtp(e, type)} className="space-y-4">
+            <form onSubmit={handleSendOtp} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="login-email">Email</Label>
                 <Input id="login-email" type="email" placeholder="you@example.com"
@@ -388,29 +219,14 @@ const Auth: React.FC = () => {
               </Button>
             </form>
           ) : (
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="otp-code">Verification Code</Label>
-                <Input id="otp-code" type="text" placeholder="123456" maxLength={6}
-                  value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} required />
-                <p className="text-xs text-muted-foreground">
-                  Use the 6-digit code from your email. If a one-time link opens another site, return here and paste the code.
-                </p>
-                <p className="text-xs text-muted-foreground">Didn't receive it?{' '}
-                  <button type="button" className="text-primary underline"
-                    onClick={() => supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: getAuthRedirectUrl() } })
-                      .then(() => toast({ title: 'Code resent!', description: 'Check your inbox.' }))}>
-                    Resend code
-                  </button>
-                </p>
-              </div>
-              <Button type="submit" variant="wellness" size="lg" className="w-full" disabled={loading}>
-                {loading ? 'Verifying...' : 'Verify & Sign In'}
-              </Button>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Continue from your inbox using the magic link. You can close this window.
+              </p>
               <Button type="button" variant="ghost" className="w-full" onClick={() => setOtpStep('email')}>
                 ← Change email
               </Button>
-            </form>
+            </div>
           )}
         </CardContent>
       </Card>
