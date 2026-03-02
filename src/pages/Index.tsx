@@ -4,6 +4,7 @@ import { BenefitsSection } from "@/components/preregistration/BenefitsSection";
 import { EmployerBenefitsSection } from "@/components/preregistration/EmployerBenefitsSection";
 import { Footer } from "@/components/preregistration/Footer";
 import { HeroSection } from "@/components/preregistration/HeroSection";
+import { PricingPackagesSection } from "@/components/preregistration/PricingPackagesSection";
 import { RegistrationSection } from "@/components/preregistration/RegistrationSection";
 import { TestimonialsSection } from "@/components/preregistration/TestimonialsSection";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ const Index = () => {
       </header>
       <HeroSection />
       <TestimonialsSection />
+      <PricingPackagesSection />
       <BenefitsSection />
       <EmployerBenefitsSection />
       <RegistrationSection />
