@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { specialistsCarouselFallback, type SpecialistCarouselItem } from "@/data/specialistsCarouselFallback";
@@ -15,6 +15,21 @@ export function TestimonialsSection() {
   const [isLoading, setIsLoading] = useState(true);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [isCarouselPaused, setIsCarouselPaused] = useState(false);
+  const carouselSpecialists = useMemo(() => {
+    const minSeamlessItems = 10;
+
+    if (specialists.length <= 1 || specialists.length >= minSeamlessItems) {
+      return specialists;
+    }
+
+    // Repeat short lists so Embla always has enough slides to loop without visual gaps.
+    const repeatedSpecialists: SpecialistCarouselItem[] = [];
+    while (repeatedSpecialists.length < minSeamlessItems) {
+      repeatedSpecialists.push(...specialists);
+    }
+
+    return repeatedSpecialists.slice(0, minSeamlessItems);
+  }, [specialists]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -74,7 +89,7 @@ export function TestimonialsSection() {
   }, []);
 
   useEffect(() => {
-    if (!carouselApi || specialists.length < 2) return;
+    if (!carouselApi || carouselSpecialists.length < 2) return;
 
     const autoplayId = window.setInterval(() => {
       if (isCarouselPaused || document.hidden) return;
@@ -82,7 +97,7 @@ export function TestimonialsSection() {
     }, 3200);
 
     return () => window.clearInterval(autoplayId);
-  }, [carouselApi, isCarouselPaused, specialists.length]);
+  }, [carouselApi, carouselSpecialists.length, isCarouselPaused]);
 
   return (
     <section id="testimonials-section" className="py-10 sm:py-12 lg:py-14 bg-muted/30 px-4 sm:px-6">
@@ -119,15 +134,15 @@ export function TestimonialsSection() {
           <div className="relative">
             <Carousel
               setApi={setCarouselApi}
-              opts={{ align: "start", loop: specialists.length > 1 }}
+              opts={{ align: "start", loop: carouselSpecialists.length > 1 }}
               className="w-full"
               onMouseEnter={() => setIsCarouselPaused(true)}
               onMouseLeave={() => setIsCarouselPaused(false)}
             >
               <CarouselContent>
-                {specialists.map((specialist, index) => (
+                {carouselSpecialists.map((specialist, index) => (
                   <CarouselItem
-                    key={specialist.id}
+                    key={`${specialist.id}-${index}`}
                     className={`sm:basis-1/2 lg:basis-1/3 xl:basis-1/5 ${
                       isVisible ? "animate-slide-in-up" : "opacity-0"
                     }`}
