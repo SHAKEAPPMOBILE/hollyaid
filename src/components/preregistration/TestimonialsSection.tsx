@@ -102,7 +102,7 @@ export function TestimonialsSection() {
           }`}
         >
           <p className="text-lg text-muted-foreground leading-relaxed">
-            Join a community of practitioners who are making a real difference in workplace wellness.
+            We have a community of practitioners who are already making a real difference in workplace wellness.
           </p>
         </div>
 
