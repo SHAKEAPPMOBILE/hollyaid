@@ -62,7 +62,7 @@ export function HeroSection() {
             </div>
 
             <h2 className="mb-4 font-sans text-2xl font-bold leading-tight text-foreground sm:text-3xl lg:text-4xl text-balance text-center lg:text-left">
-              Join a Community of Certified Wellness Specialists
+              A Community of Certified Wellness Specialists
             </h2>
 
             <p className="mb-6 text-lg text-muted-foreground leading-relaxed text-pretty text-center lg:text-left">
