@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Building2, Users, AlertCircle, CheckCircle2, Loader2, HandHeart, ArrowLeft, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import PlanSelection, { WELLNESS_PLANS, Plan } from '@/components/PlanSelection';
+import PlanSelection, { Plan } from '@/components/PlanSelection';
 import { isTestAccountEmail } from '@/lib/plans';
 
 type AuthView = 'main' | 'employee-login' | 'specialist-login' | 'company-login' | 'register' | 'select-plan';

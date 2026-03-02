@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Loader2, Zap, TrendingUp, Building2 } from "lucide-react";
+import { Check, Loader2, Zap, TrendingUp, Building2, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface Plan {
@@ -16,13 +16,24 @@ export interface Plan {
   name: string;
   price: number;
   minutes: number;
-  hours: string;
+  hours: number | string;
   priceId: string;
   icon: React.ReactNode;
   popular?: boolean;
+  offers: string[];
 }
 
-export const WELLNESS_PLANS: Plan[] = [
+const WELLNESS_PLANS: Plan[] = [
+  {
+    id: "solopreneur",
+    name: "Solopreneur",
+    price: 80,
+    minutes: 60,
+    hours: "1",
+    priceId: "",
+    icon: <UserRound className="w-6 h-6" />,
+    offers: ["1 consultation with 1 specialist", "Access to free courses"],
+  },
   {
     id: "starter",
     name: "Starter",
@@ -31,6 +42,7 @@ export const WELLNESS_PLANS: Plan[] = [
     hours: "8.3",
     priceId: "price_1T2EXyGqEX4plgbe5klHtV5y",
     icon: <Zap className="w-6 h-6" />,
+    offers: ["500 wellness minutes", "Access to all specialists", "Unlimited employees"],
   },
   {
     id: "growth",
@@ -41,6 +53,7 @@ export const WELLNESS_PLANS: Plan[] = [
     priceId: "price_1T2EYQGqEX4plgbewYPw9C39",
     icon: <TrendingUp className="w-6 h-6" />,
     popular: true,
+    offers: ["1,500 wellness minutes", "Access to all specialists", "Unlimited employees"],
   },
   {
     id: "scale",
@@ -50,6 +63,7 @@ export const WELLNESS_PLANS: Plan[] = [
     hours: "60",
     priceId: "price_1T2EYvGqEX4plgbe2d6taMm5",
     icon: <Building2 className="w-6 h-6" />,
+    offers: ["3,600 wellness minutes", "Access to all specialists", "Unlimited employees"],
   },
 ];
 
@@ -77,7 +91,7 @@ const PlanSelection: React.FC<PlanSelectionProps> = ({
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {WELLNESS_PLANS.map((plan) => (
           <Card
             key={plan.id}
@@ -116,18 +130,12 @@ const PlanSelection: React.FC<PlanSelectionProps> = ({
               </div>
 
               <ul className="space-y-2 text-sm text-left">
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-primary" />
-                  <span>{plan.minutes.toLocaleString()} wellness minutes</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-primary" />
-                  <span>Access to all specialists</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-primary" />
-                  <span>Unlimited employees</span>
-                </li>
+                {plan.offers.map((offer) => (
+                  <li key={offer} className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-primary" />
+                    <span>{offer}</span>
+                  </li>
+                ))}
               </ul>
 
               <Button

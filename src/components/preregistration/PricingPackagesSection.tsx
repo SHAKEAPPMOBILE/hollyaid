@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Building2, Check, TrendingUp, Zap } from "lucide-react";
+import { Building2, Check, TrendingUp, UserRound, Zap } from "lucide-react";
 import { PLANS } from "@/lib/plans";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const additionalOffersByPlanId: Record<string, string[]> = {
-  starter: ["Simple monthly setup"],
-  growth: ["Priority specialist matching"],
-  scale: ["Priority specialist matching", "Custom rollout support"],
+const offersByPlanId: Record<string, string[]> = {
+  solopreneur: ["1 consultation with 1 specialist", "Access to free courses"],
+  starter: ["Access to all specialists", "Unlimited employees", "Simple monthly setup"],
+  growth: ["Access to all specialists", "Unlimited employees", "Priority specialist matching"],
+  scale: ["Access to all specialists", "Unlimited employees", "Priority specialist matching", "Custom rollout support"],
 };
 
 function iconForPlan(planId: string) {
+  if (planId === "solopreneur") return UserRound;
   if (planId === "starter") return Zap;
   if (planId === "growth") return TrendingUp;
   return Building2;
@@ -56,11 +58,11 @@ export function PricingPackagesSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
           {plans.map((plan, index) => {
             const Icon = iconForPlan(plan.id);
             const isPopular = plan.id === "growth";
-            const offers = additionalOffersByPlanId[plan.id] ?? [];
+            const offers = offersByPlanId[plan.id] ?? [];
 
             return (
               <Card
@@ -92,14 +94,6 @@ export function PricingPackagesSection() {
                   </div>
 
                   <ul className="space-y-2 text-sm">
-                    <li className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-primary" />
-                      <span>Access to all specialists</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-primary" />
-                      <span>Unlimited employees</span>
-                    </li>
                     {offers.map((offer) => (
                       <li key={offer} className="flex items-center gap-2">
                         <Check className="h-4 w-4 text-primary" />

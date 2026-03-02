@@ -8,19 +8,38 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+type PlanConfig = {
+  priceId: string;
+  minutes: number;
+  monthlyAmountCents: number;
+  displayName: string;
+};
+
 // Plan configurations
 const PLANS = {
+  solopreneur: {
+    priceId: (Deno.env.get("STRIPE_SOLOPRENEUR_PRICE_ID") || "").trim(),
+    minutes: 60,
+    monthlyAmountCents: 8000,
+    displayName: "Solopreneur",
+  },
   starter: {
     priceId: "price_1T2EXyGqEX4plgbe5klHtV5y",
     minutes: 500,
+    monthlyAmountCents: 34000,
+    displayName: "Starter",
   },
   growth: {
     priceId: "price_1T2EYQGqEX4plgbewYPw9C39",
     minutes: 1500,
+    monthlyAmountCents: 95000,
+    displayName: "Growth",
   },
   scale: {
     priceId: "price_1T2EYvGqEX4plgbe2d6taMm5",
     minutes: 3600,
+    monthlyAmountCents: 185000,
+    displayName: "Scale",
   },
 };
 
@@ -52,8 +71,8 @@ serve(async (req) => {
 
     // Get request body for plan selection
     const body = await req.json().catch(() => ({}));
-    const planType = (body.planType || "starter").toString().trim();
-    const plan = PLANS[planType as keyof typeof PLANS];
+    const planType = (body.planType || "starter").toString().trim().toLowerCase();
+    const plan = PLANS[planType as keyof typeof PLANS] as PlanConfig | undefined;
     if (!plan) throw new Error(`Invalid plan type: ${planType}`);
 
     const emailDomain = user.email.split("@")[1]?.toLowerCase();
@@ -123,22 +142,39 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://hollyaid.com";
 
+    const subscriptionMetadata = {
+      user_id: user.id,
+      plan_type: rawPlanType,
+      minutes_included: plan.minutes.toString(),
+    };
+
+    const lineItem = cleanPriceId
+      ? {
+          price: cleanPriceId,
+          quantity: 1,
+        }
+      : {
+          price_data: {
+            currency: "usd",
+            unit_amount: plan.monthlyAmountCents,
+            recurring: { interval: "month" as const },
+            product_data: {
+              name: `${plan.displayName} Wellness Plan`,
+            },
+          },
+          quantity: 1,
+        };
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
-      line_items: [
-        {
-          price: cleanPriceId,
-          quantity: 1,
-        },
-      ],
+      line_items: [lineItem],
       mode: "subscription",
       success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}&plan=${rawPlanType}`,
       cancel_url: `${origin}/auth`,
-      metadata: {
-        user_id: user.id,
-        plan_type: rawPlanType,
-        minutes_included: plan.minutes.toString(),
+      metadata: subscriptionMetadata,
+      subscription_data: {
+        metadata: subscriptionMetadata,
       },
     });
 

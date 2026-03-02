@@ -10,6 +10,7 @@ const corsHeaders = {
 
 // Plan configurations
 const PLANS: Record<string, { minutes: number }> = {
+  solopreneur: { minutes: 60 },
   starter: { minutes: 500 },
   growth: { minutes: 1500 },
   scale: { minutes: 3600 },
@@ -105,8 +106,16 @@ serve(async (req) => {
       subscriptionEnd = new Date(
         subscription.current_period_end * 1000,
       ).toISOString();
+      const metadataPlanType = subscription.metadata?.plan_type?.toString().trim().toLowerCase();
       const productId = subscription.items.data[0].price.product as string;
-      planType = PRODUCT_TO_PLAN[productId] || "starter";
+      const productMappedPlan = PRODUCT_TO_PLAN[productId];
+
+      if (metadataPlanType && PLANS[metadataPlanType]) {
+        planType = metadataPlanType;
+      } else {
+        planType = productMappedPlan || "starter";
+      }
+
       minutesIncluded = PLANS[planType]?.minutes || 500;
 
       // Update company subscription info

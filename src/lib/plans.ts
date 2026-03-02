@@ -1,5 +1,15 @@
 // Wellness Plans Configuration
 export const WELLNESS_PLANS = {
+  solopreneur: {
+    id: 'solopreneur',
+    name: 'Solopreneur',
+    price: 80,
+    minutes: 60,
+    hours: 1,
+    // Solopreneur checkout uses dynamic Stripe price_data unless a dedicated price is configured.
+    priceId: '',
+    productId: '',
+  },
   starter: {
     id: 'starter',
     name: 'Starter',
