@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
+import { specialistsCarouselFallback, type SpecialistCarouselItem } from "@/data/specialistsCarouselFallback";
 import {
   Carousel,
   CarouselApi,
@@ -8,15 +9,9 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 
-interface Specialist {
-  id: string;
-  full_name: string;
-  avatar_url: string;
-}
-
 export function TestimonialsSection() {
   const [isVisible, setIsVisible] = useState(false);
-  const [specialists, setSpecialists] = useState<Specialist[]>([]);
+  const [specialists, setSpecialists] = useState<SpecialistCarouselItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [isCarouselPaused, setIsCarouselPaused] = useState(false);
@@ -44,17 +39,13 @@ export function TestimonialsSection() {
 
         if (error) {
           console.error("Error fetching specialists:", error);
-          setSpecialists([]);
+          setSpecialists(specialistsCarouselFallback);
           return;
         }
 
         const normalizedSpecialists = (data ?? [])
           .filter(
-            (specialist): specialist is {
-              id: string;
-              full_name: string;
-              avatar_url: string;
-            } =>
+            (specialist): specialist is SpecialistCarouselItem =>
               Boolean(
                 specialist.id &&
                   specialist.full_name &&
@@ -68,10 +59,10 @@ export function TestimonialsSection() {
             avatar_url: specialist.avatar_url,
           }));
 
-        setSpecialists(normalizedSpecialists);
+        setSpecialists(normalizedSpecialists.length > 0 ? normalizedSpecialists : specialistsCarouselFallback);
       } catch (error) {
         console.error("Error fetching specialists:", error);
-        setSpecialists([]);
+        setSpecialists(specialistsCarouselFallback);
       } finally {
         setIsLoading(false);
       }
@@ -94,10 +85,10 @@ export function TestimonialsSection() {
   }, [carouselApi, isCarouselPaused, specialists.length]);
 
   return (
-    <section id="testimonials-section" className="py-16 sm:py-20 lg:py-24 bg-muted/30 px-4 sm:px-6">
+    <section id="testimonials-section" className="py-10 sm:py-12 lg:py-14 bg-muted/30 px-4 sm:px-6">
       <div className="container mx-auto max-w-7xl">
         <div
-          className={`mx-auto max-w-3xl text-center mb-10 transition-all duration-1000 ${
+          className={`mx-auto max-w-3xl text-center mb-4 transition-all duration-1000 ${
             isVisible ? "animate-slide-in-up" : "opacity-0"
           }`}
         >
