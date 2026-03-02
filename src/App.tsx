@@ -22,7 +22,6 @@ import Settings from "./pages/Settings";
 import CompanyBilling from "./pages/CompanyBilling";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
-import Specialists from "./pages/Specialists";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -119,7 +118,6 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
-            <Route path="/specialists" element={<Specialists />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/reset-password" element={<ResetPassword />} />
