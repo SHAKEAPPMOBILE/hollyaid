@@ -201,7 +201,7 @@ const Auth: React.FC = () => {
             <CardDescription className="text-muted-foreground">
               {otpStep === 'email'
                 ? `Sign in to access your ${descriptions[type]}`
-                : `Check your email for the magic link login sent to ${email}. Please check spam too.`}
+                : 'Check your email (spam too) to continue on Hollyaid! You can close this window! Thank you!'}
             </CardDescription>
           </div>
         </CardHeader>
@@ -220,9 +220,6 @@ const Auth: React.FC = () => {
             </form>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Continue from your inbox using the magic link. You can close this window.
-              </p>
               <Button type="button" variant="ghost" className="w-full" onClick={() => setOtpStep('email')}>
                 ← Change email
               </Button>
