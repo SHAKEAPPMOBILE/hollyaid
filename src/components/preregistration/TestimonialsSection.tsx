@@ -18,7 +18,6 @@ export function TestimonialsSection() {
   const [isVisible, setIsVisible] = useState(false);
   const [specialists, setSpecialists] = useState<Specialist[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [isCarouselPaused, setIsCarouselPaused] = useState(false);
 
@@ -45,7 +44,6 @@ export function TestimonialsSection() {
 
         if (error) {
           console.error("Error fetching specialists:", error);
-          setLoadError("Unable to load specialists right now.");
           setSpecialists([]);
           return;
         }
@@ -70,11 +68,10 @@ export function TestimonialsSection() {
             avatar_url: specialist.avatar_url,
           }));
 
-        setLoadError(null);
         setSpecialists(normalizedSpecialists);
       } catch (error) {
         console.error("Error fetching specialists:", error);
-        setLoadError("Unable to load specialists right now.");
+        setSpecialists([]);
       } finally {
         setIsLoading(false);
       }
@@ -100,13 +97,12 @@ export function TestimonialsSection() {
     <section id="testimonials-section" className="py-16 sm:py-20 lg:py-24 bg-muted/30 px-4 sm:px-6">
       <div className="container mx-auto max-w-7xl">
         <div
-          className={`mx-auto max-w-3xl text-center mb-16 transition-all duration-1000 ${
+          className={`mx-auto max-w-3xl text-center mb-10 transition-all duration-1000 ${
             isVisible ? "animate-slide-in-up" : "opacity-0"
           }`}
         >
-          <h2 className="text-3xl font-bold text-foreground mb-4">Meet Our Specialists</h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            A quick preview of specialists with profile photos on Hollyaid. The carousel auto-scrolls automatically.
+            Join a community of practitioners who are making a real difference in workplace wellness.
           </p>
         </div>
 
@@ -128,8 +124,6 @@ export function TestimonialsSection() {
                 </Card>
               ))}
           </div>
-        ) : loadError ? (
-          <div className="text-center py-12 text-muted-foreground">{loadError}</div>
         ) : specialists.length > 0 ? (
           <div className="relative">
             <Carousel
@@ -166,15 +160,9 @@ export function TestimonialsSection() {
                 ))}
               </CarouselContent>
             </Carousel>
-
-            <p className="mt-4 text-center text-xs text-muted-foreground">
-              Auto-scrolling preview ({specialists.length} specialists). Hover to pause.
-            </p>
           </div>
         ) : (
-          <div className="text-center py-12 text-muted-foreground">
-            No specialists with profile photos available right now.
-          </div>
+          <div className="h-24" />
         )}
       </div>
     </section>
