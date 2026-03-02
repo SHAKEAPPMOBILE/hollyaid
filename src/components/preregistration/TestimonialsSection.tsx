@@ -15,19 +15,20 @@ export function TestimonialsSection() {
   const [isLoading, setIsLoading] = useState(true);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const carouselSpecialists = useMemo(() => {
-    const minSeamlessItems = 10;
+    const minSeamlessItems = 12;
 
-    if (specialists.length <= 1 || specialists.length >= minSeamlessItems) {
+    if (specialists.length <= 1) {
       return specialists;
     }
 
-    // Repeat short lists so Embla always has enough slides to loop without visual gaps.
+    // Always repeat the specialist sequence so after the last card, the first cards are immediately next.
+    const repetitionCount = Math.max(2, Math.ceil(minSeamlessItems / specialists.length));
     const repeatedSpecialists: SpecialistCarouselItem[] = [];
-    while (repeatedSpecialists.length < minSeamlessItems) {
+    for (let i = 0; i < repetitionCount; i += 1) {
       repeatedSpecialists.push(...specialists);
     }
 
-    return repeatedSpecialists.slice(0, minSeamlessItems);
+    return repeatedSpecialists;
   }, [specialists]);
 
   useEffect(() => {
@@ -133,7 +134,7 @@ export function TestimonialsSection() {
           <div className="relative">
             <Carousel
               setApi={setCarouselApi}
-              opts={{ align: "start", loop: carouselSpecialists.length > 1 }}
+              opts={{ align: "start", loop: carouselSpecialists.length > 1, containScroll: "keepSnaps" }}
               className="w-full"
             >
               <CarouselContent>
@@ -143,7 +144,6 @@ export function TestimonialsSection() {
                     className={`sm:basis-1/2 lg:basis-1/3 xl:basis-1/5 ${
                       isVisible ? "animate-slide-in-up" : "opacity-0"
                     }`}
-                    style={{ animationDelay: `${index * 80}ms` }}
                   >
                     <Card className="border-border rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 bg-card h-full">
                       <CardContent className="p-6">
