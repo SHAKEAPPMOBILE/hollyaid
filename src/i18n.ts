@@ -6,6 +6,9 @@ export const SUPPORTED_LANGUAGES = [
   { code: "fr", label: "Français" },
   { code: "es", label: "Español" },
   { code: "pt", label: "Português" },
+  { code: "de", label: "Deutsch" },
+  { code: "it", label: "Italiano" },
+  { code: "nl", label: "Nederlands" },
 ] as const;
 
 export type SupportedLanguageCode = (typeof SUPPORTED_LANGUAGES)[number]["code"];
@@ -106,6 +109,78 @@ const resources = {
       billing: {
         title: "Cobrança da empresa",
         subtitle: "Plano, data de renovação e uso de minutos.",
+      },
+    },
+  },
+  de: {
+    translation: {
+      common: {
+        language: "Sprache",
+        back: "Zurück",
+        loading: "Wird geladen…",
+      },
+      nav: {
+        myProfile: "Mein Profil",
+        admin: "Admin",
+        signOut: "Abmelden",
+      },
+      dashboard: {
+        usage: "Nutzung",
+        specialists: "Spezialisten",
+        myBookings: "Meine Buchungen",
+        employees: "Mitarbeiter",
+      },
+      billing: {
+        title: "Unternehmensabrechnung",
+        subtitle: "Plan, Verlängerungsdatum und Minutenverbrauch.",
+      },
+    },
+  },
+  it: {
+    translation: {
+      common: {
+        language: "Lingua",
+        back: "Indietro",
+        loading: "Caricamento…",
+      },
+      nav: {
+        myProfile: "Il mio profilo",
+        admin: "Admin",
+        signOut: "Esci",
+      },
+      dashboard: {
+        usage: "Utilizzo",
+        specialists: "Specialisti",
+        myBookings: "Le mie prenotazioni",
+        employees: "Dipendenti",
+      },
+      billing: {
+        title: "Fatturazione aziendale",
+        subtitle: "Piano, data di rinnovo e utilizzo dei minuti.",
+      },
+    },
+  },
+  nl: {
+    translation: {
+      common: {
+        language: "Taal",
+        back: "Terug",
+        loading: "Laden…",
+      },
+      nav: {
+        myProfile: "Mijn profiel",
+        admin: "Admin",
+        signOut: "Uitloggen",
+      },
+      dashboard: {
+        usage: "Gebruik",
+        specialists: "Specialisten",
+        myBookings: "Mijn boekingen",
+        employees: "Medewerkers",
+      },
+      billing: {
+        title: "Bedrijfsfacturatie",
+        subtitle: "Plan, verlengingsdatum en minutengebruik.",
       },
     },
   },
