@@ -49,3 +49,16 @@ This project is built with:
 Yes, you can!
 
 To connect a domain, configure it through your hosting provider's dashboard.
+
+## Magic link expiry (10 minutes)
+
+Login links are sent by Supabase Auth. Expiry is configured in the **Supabase Dashboard**, not in this repo.
+
+To set magic links to expire after **10 minutes**:
+
+1. Open [Supabase Dashboard](https://supabase.com/dashboard) → your project.
+2. Go to **Authentication** → **Providers** → **Email** (or **Settings**).
+3. Look for **"Email OTP expiry"** or **"Magic link expiry"** (in seconds). Set it to **600** (10 minutes).
+4. If your plan uses the Management API, you can also set `mailer_otp_exp` to `600` in the auth config.
+
+If the link fails right after clicking, some email providers (e.g. Microsoft Safe Links) prefetch links and consume the one-time token. In that case, use a different email client or ask users to request a new link.

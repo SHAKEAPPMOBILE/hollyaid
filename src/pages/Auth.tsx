@@ -78,7 +78,7 @@ const handleSendMagicLink = async (e: React.FormEvent, type: 'employee' | 'speci
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       setLinkStep('email_sent');
-      toast({ title: 'Login link sent!', description: `Check your inbox (and spam) at ${email} and click the link to sign in.` });
+      toast({ title: 'Login link sent!', description: 'Check your inbox and click the link we sent to login. The link is valid for a limited time.' });
     }
 
     setLoading(false);
@@ -113,7 +113,7 @@ const handleSendMagicLink = async (e: React.FormEvent, type: 'employee' | 'speci
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       setLinkStep('email_sent');
-      toast({ title: 'Check your email', description: `We sent a link to ${email}. Click it to complete registration.` });
+      toast({ title: 'Check your email', description: 'Check your inbox and click the link we sent to login. The link is valid for a limited time.' });
     }
 
     setLoading(false);
@@ -180,7 +180,7 @@ const handleSendMagicLink = async (e: React.FormEvent, type: 'employee' | 'speci
             <CardDescription className="text-muted-foreground">
               {linkStep === 'email'
                 ? `Sign in to access your ${descriptions[type]}`
-                : `We sent a login link to ${email}. Check your inbox (and spam) and click the link to sign in.`}
+                : 'Check your inbox and click the link we sent to login. The link is valid for a limited time.'}
             </CardDescription>
           </div>
         </CardHeader>
@@ -200,7 +200,7 @@ const handleSendMagicLink = async (e: React.FormEvent, type: 'employee' | 'speci
           ) : (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Check your inbox and click the link we sent to <strong>{email}</strong> to sign in. The link is valid for a limited time.
+                Check your inbox and click the link we sent to login. The link is valid for a limited time.
               </p>
               <div className="flex flex-col gap-2">
                 <Button type="button" variant="outline" className="w-full" disabled={loading}
@@ -275,7 +275,7 @@ const handleSendMagicLink = async (e: React.FormEvent, type: 'employee' | 'speci
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Check your inbox and click the link we sent to <strong>{email}</strong> to complete your company registration. The link is valid for a limited time.
+              Check your inbox and click the link we sent to login. The link is valid for a limited time.
             </p>
             <div className="flex flex-col gap-2">
               <Button type="button" variant="outline" className="w-full" disabled={loading}

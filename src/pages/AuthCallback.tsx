@@ -59,7 +59,7 @@ const AuthCallback: React.FC = () => {
       if (code) {
         const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
         if (exchangeError) {
-          setError('We could not complete login from the email link. Please request a new 6-digit code.');
+          setError('Login link expired or invalid. Please request a new one.');
           setTimeout(() => navigate('/auth'), 3000);
           return;
         }
@@ -73,7 +73,7 @@ const AuthCallback: React.FC = () => {
         });
 
         if (verifyHashError) {
-          setError('The one-time link is invalid or expired. Please request a new 6-digit code.');
+          setError('Login link expired or invalid. Please request a new one.');
           setTimeout(() => navigate('/auth'), 3000);
           return;
         }
@@ -86,7 +86,7 @@ const AuthCallback: React.FC = () => {
           refresh_token: refreshToken,
         });
         if (setSessionError) {
-          setError('Could not restore your login session from the email link. Please request a new code.');
+          setError('Login link expired or invalid. Please request a new one.');
           setTimeout(() => navigate('/auth'), 3000);
           return;
         }
@@ -95,7 +95,7 @@ const AuthCallback: React.FC = () => {
       const session = await getSessionWithRetry();
 
       if (!session) {
-        setError('Login link expired or invalid. Please request a new 6-digit code.');
+        setError('Login link expired or invalid. Please request a new one.');
         setTimeout(() => navigate('/auth'), 3000);
         return;
       }

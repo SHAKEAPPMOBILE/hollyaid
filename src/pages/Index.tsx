@@ -56,7 +56,7 @@ const Index = () => {
           <div className="flex items-center gap-3 rounded-lg border border-border bg-background/95 px-3 py-2 shadow-sm backdrop-blur-md">
             <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">We operate in</span>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               {countryLanguageOptions.map((option) => {
                 const languageLabel = SUPPORTED_LANGUAGES.find((lang) => lang.code === option.language)?.label || option.language;
                 const isActive = option.language === currentLanguage;
@@ -67,9 +67,9 @@ const Index = () => {
                     type="button"
                     onClick={() => void handleCountryLanguageClick(option.language)}
                     title={`${option.country} · ${languageLabel}`}
-                    aria-label={`Switch language to ${languageLabel} via ${option.country}`}
-                    className={`inline-flex h-7 w-7 items-center justify-center text-sm transition-transform hover:scale-110 ${
-                      isActive ? "ring-2 ring-primary/60 bg-primary/10 rounded" : "opacity-80 hover:opacity-100"
+                    aria-label={`Switch language to ${languageLabel}`}
+                    className={`p-0.5 border-0 bg-transparent cursor-pointer text-lg leading-none transition-opacity hover:opacity-100 focus:outline-none focus:ring-0 ${
+                      isActive ? "opacity-100" : "opacity-70"
                     }`}
                   >
                     {option.flag}
