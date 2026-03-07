@@ -9,6 +9,7 @@ import { PricingPackagesSection } from "@/components/preregistration/PricingPack
 import { RegistrationSection } from "@/components/preregistration/RegistrationSection";
 import { TestimonialsSection } from "@/components/preregistration/TestimonialsSection";
 import { ProductDemoSection } from "@/components/preregistration/ProductDemoSection";
+import { OfflineActivitiesSection } from "@/components/preregistration/OfflineActivitiesSection";
 import { Button } from "@/components/ui/button";
 import { SUPPORTED_LANGUAGES, detectLanguageFromIP, type SupportedLanguageCode } from "@/i18n";
 
@@ -91,6 +92,7 @@ const Index = () => {
       <HeroSection />
       <TestimonialsSection />
       <ProductDemoSection />
+      <OfflineActivitiesSection />
       <PricingPackagesSection />
       <BenefitsSection />
       <EmployerBenefitsSection />

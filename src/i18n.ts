@@ -15,6 +15,49 @@ export type SupportedLanguageCode = (typeof SUPPORTED_LANGUAGES)[number]["code"]
 
 const STORAGE_KEY = "hollyaid_lang";
 
+/** Country code (ISO 3166-1 alpha-2) → language for auto-detect by IP */
+const COUNTRY_TO_LANG: Partial<Record<string, SupportedLanguageCode>> = {
+  US: "en",
+  CA: "en",
+  GB: "en",
+  AU: "en",
+  IE: "en",
+  NZ: "en",
+  MX: "es",
+  CO: "es",
+  ES: "es",
+  AR: "es",
+  CL: "es",
+  PE: "es",
+  VE: "es",
+  EC: "es",
+  BR: "pt",
+  PT: "pt",
+  FR: "fr",
+  BE: "fr",
+  DE: "de",
+  CH: "de",
+  AT: "de",
+  IT: "it",
+  NL: "nl",
+};
+
+/**
+ * Fetches country from IP and returns a suggested language. Use when no language is stored
+ * so the page can auto-translate based on visitor country.
+ */
+export const detectLanguageFromIP = (): Promise<SupportedLanguageCode | null> => {
+  return fetch("https://ipapi.co/json/", { method: "GET" })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((data: { country_code?: string } | null) => {
+      const code = data?.country_code;
+      if (!code) return null;
+      const lang = COUNTRY_TO_LANG[code];
+      return lang && SUPPORTED_LANGUAGES.some((l) => l.code === lang) ? lang : null;
+    })
+    .catch(() => null);
+};
+
 const resources = {
   en: {
     translation: {
