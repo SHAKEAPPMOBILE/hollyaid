@@ -81,6 +81,18 @@ The **login link in the email** is decided by the **build** that served the page
 
 If hollyaid.com is your main domain and it currently points to Lovable, either point **hollyaid.com** to Netlify in DNS and set `VITE_AUTH_REDIRECT_URL` to `https://hollyaid.com`, or use **hollyaidapp.netlify.app** for login until the domain is switched.
 
+## Magic link email template (token_hash)
+
+The app uses **token_hash** (not PKCE) so the link is valid for the full OTP expiry (e.g. 1 hour), not the short PKCE flow state (~10 minutes).
+
+In **Supabase Dashboard** → **Authentication** → **Email Templates** → **Magic Link**, set the link to:
+
+```html
+<a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email">Log In</a>
+```
+
+Use your actual Site URL (e.g. `https://hollyaidapp.netlify.app`). The `{{ .SiteURL }}` variable is filled by Supabase. The callback expects `token_hash` and optionally `type=email` in the query string.
+
 ## Magic link expiry (10 minutes)
 
 Login links are sent by Supabase Auth. Expiry is configured in the **Supabase Dashboard**, not in this repo.

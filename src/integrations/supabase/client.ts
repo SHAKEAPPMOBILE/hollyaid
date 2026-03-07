@@ -13,6 +13,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: false, // we handle magic-link callback in AuthCallback so tokens aren't consumed before we can exchange them
+    detectSessionInUrl: false, // we handle magic-link callback in AuthCallback
+    // do not set flowType: 'pkce' — we use token_hash + type=email so link is valid for full OTP expiry, not PKCE flow state (~10 min)
   }
 });

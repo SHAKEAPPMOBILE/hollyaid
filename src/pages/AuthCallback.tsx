@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import type { EmailOtpType, Session } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { getCompanyAdminAccess } from '@/lib/companyAdminAccess';
 import Logo from '@/components/Logo';
@@ -15,20 +15,6 @@ export interface PendingRegister {
   fullName: string;
   email: string;
 }
-
-const CALLBACK_OTP_TYPES = new Set<EmailOtpType>([
-  'signup',
-  'invite',
-  'magiclink',
-  'recovery',
-  'email_change',
-  'email',
-]);
-
-const parseOtpType = (value: string | null): EmailOtpType | null => {
-  if (!value) return null;
-  return CALLBACK_OTP_TYPES.has(value as EmailOtpType) ? (value as EmailOtpType) : null;
-};
 
 const getSessionWithRetry = async (): Promise<Session | null> => {
   for (let i = 0; i < 5; i++) {
@@ -49,7 +35,6 @@ const AuthCallback: React.FC = () => {
       const searchParams = new URLSearchParams(location.search);
       const code = searchParams.get('code');
       const tokenHash = searchParams.get('token_hash');
-      const tokenType = parseOtpType(searchParams.get('type'));
 
       const hashParams = new URLSearchParams(location.hash.startsWith('#') ? location.hash.slice(1) : location.hash);
       const accessToken = hashParams.get('access_token');
@@ -79,11 +64,11 @@ const AuthCallback: React.FC = () => {
         }
       }
 
-      // 2) Token hash (?token_hash=...&type=...)
-      if (tokenHash && tokenType) {
+      // 2) Token hash (?token_hash=...&type=email) — use type 'email' to avoid PKCE flow state expiry (~10 min)
+      if (tokenHash) {
         const { error: verifyHashError } = await supabase.auth.verifyOtp({
           token_hash: tokenHash,
-          type: tokenType,
+          type: 'email',
         });
 
         if (verifyHashError) {
@@ -111,7 +96,7 @@ const AuthCallback: React.FC = () => {
       const session = await getSessionWithRetry();
 
       if (!session) {
-        const hasAnyParam = code || (tokenHash && tokenType) || (accessToken && refreshToken);
+        const hasAnyParam = code || tokenHash || (accessToken && refreshToken);
         const callbackUrl = `${window.location.origin}/auth/callback`;
         if (!hasAnyParam) {
           setError(`No login data in URL. The email link may be pointing to another domain. In Supabase set Site URL to ${window.location.origin} and add Redirect URL: ${callbackUrl}`);
