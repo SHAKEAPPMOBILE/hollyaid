@@ -107,6 +107,12 @@ const AuthCallback: React.FC = () => {
         return;
       }
 
+      // Password reset: Supabase can send recovery link to /auth/callback#...&type=recovery — send to set-password page
+      if (hashParams.get('type') === 'recovery') {
+        navigate('/reset-password', { replace: true });
+        return;
+      }
+
       const userId = session.user.id;
       const email = session.user.email ?? '';
 

@@ -30,6 +30,7 @@ const EmployeeSignup: React.FC = () => {
     }
   }, [user, navigate]);
 
+  // Only allow signup when the email domain matches a company with an active subscription (e.g. peter@company.com → company must exist and be active).
   const checkCompanyDomain = async (email: string) => {
     if (!email || !email.includes('@')) {
       setMatchingCompany(null);

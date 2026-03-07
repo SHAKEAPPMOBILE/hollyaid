@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { isCompanyEmail, getEmailDomain } from '@/lib/supabase';
-import { getAuthRedirectUrl, getAuthBaseUrl } from '@/lib/authRedirect';
+import { getAuthBaseUrl } from '@/lib/authRedirect';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import Logo from '@/components/Logo';
@@ -9,22 +9,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Users, AlertCircle, CheckCircle2, Loader2, HandHeart, ArrowLeft, Mail, KeyRound } from 'lucide-react';
+import { Building2, Users, AlertCircle, CheckCircle2, Loader2, HandHeart, ArrowLeft, KeyRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import PlanSelection, { Plan } from '@/components/PlanSelection';
 import { isTestAccountEmail } from '@/lib/plans';
-import { PENDING_REGISTER_KEY } from '@/pages/AuthCallback';
 
 type AuthView = 'main' | 'employee-login' | 'specialist-login' | 'company-login' | 'register' | 'select-plan';
-type LinkStep = 'email' | 'email_sent';
-
-type LoginMode = 'magic_link' | 'password';
 
 const Auth: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const { signIn } = useAuth();
+  const { signIn, signUp } = useAuth();
 
   // Restore view/state when returning from callback (e.g. select-plan after magic-link signup)
   useEffect(() => {
@@ -37,8 +33,6 @@ const Auth: React.FC = () => {
   }, [location.state, location.pathname, navigate]);
 
   const [view, setView] = useState<AuthView>('main');
-  const [linkStep, setLinkStep] = useState<LinkStep>('email');
-  const [loginMode, setLoginMode] = useState<LoginMode>('password');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
@@ -64,7 +58,6 @@ const Auth: React.FC = () => {
     setFullName('');
     setCompanyName('');
     setEmailError('');
-    setLinkStep('email');
     setSelectedPlanId('');
     setRegisteredUserId(null);
   };
@@ -106,60 +99,50 @@ const Auth: React.FC = () => {
     toast({ title: 'Check your email', description: 'We sent a link to set or reset your password.' });
   };
 
-const handleSendMagicLink = async (e: React.FormEvent, type: 'employee' | 'specialist' | 'company') => {
+  const handleRegisterWithPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: true,
-        emailRedirectTo: getAuthRedirectUrl(),
-      },
-    });
-
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    } else {
-      setLinkStep('email_sent');
-      toast({ title: 'Login link sent!', description: 'Check your inbox and click the link we sent to login. The link is valid for a limited time.' });
-    }
-
-    setLoading(false);
-  };
-
-  const handleRegisterSendMagicLink = async (e: React.FormEvent) => {
-    e.preventDefault();
-
     if (!isCompanyEmail(email)) {
-      toast({ title: 'Invalid email', description: 'Please use your company email address.', variant: 'destructive' });
+      toast({ title: 'Invalid email', description: 'Please use your company email address (not Gmail, Yahoo, etc.).', variant: 'destructive' });
       return;
     }
-
-    setLoading(true);
-
-    sessionStorage.setItem(PENDING_REGISTER_KEY, JSON.stringify({
-      companyName,
-      fullName,
-      email: email.toLowerCase(),
-    }));
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: true,
-        emailRedirectTo: getAuthRedirectUrl(),
-      },
-    });
-
-    if (error) {
-      sessionStorage.removeItem(PENDING_REGISTER_KEY);
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    } else {
-      setLinkStep('email_sent');
-      toast({ title: 'Check your email', description: 'Check your inbox and click the link we sent to login. The link is valid for a limited time.' });
+    if (!password || password.length < 6) {
+      toast({ title: 'Password required', description: 'Use at least 6 characters.', variant: 'destructive' });
+      return;
     }
-
+    setLoading(true);
+    const normalizedEmail = email.trim().toLowerCase();
+    const { error: signUpError } = await signUp(normalizedEmail, password, fullName.trim());
+    if (signUpError) {
+      toast({ title: 'Sign up failed', description: signUpError.message, variant: 'destructive' });
+      setLoading(false);
+      return;
+    }
+    const { user: newUser, error: signInError } = await signIn(normalizedEmail, password);
+    if (signInError || !newUser) {
+      toast({
+        title: 'Account created',
+        description: signInError?.message ?? 'Please sign in with your email and password.',
+        variant: 'destructive',
+      });
+      setLoading(false);
+      return;
+    }
+    const domain = getEmailDomain(normalizedEmail);
+    const { error: companyError } = await supabase.from('companies').insert({
+      name: companyName.trim(),
+      email_domain: domain,
+      admin_user_id: newUser.id,
+      subscription_status: 'unpaid',
+      is_test_account: isTestAccountEmail(normalizedEmail),
+    });
+    if (companyError) {
+      toast({ title: 'Could not create company', description: companyError.message, variant: 'destructive' });
+      setLoading(false);
+      return;
+    }
+    await supabase.from('user_roles').insert({ user_id: newUser.id, role: 'company_admin' });
+    setRegisteredUserId(newUser.id);
+    setView('select-plan');
     setLoading(false);
   };
 
@@ -209,92 +192,42 @@ const handleSendMagicLink = async (e: React.FormEvent, type: 'employee' | 'speci
   const renderLoginForm = (type: 'employee' | 'specialist' | 'company') => {
     const titles = { employee: 'Employee Login', specialist: 'Specialist Login', company: 'Company Login' };
     const descriptions = { employee: 'wellness portal', specialist: 'dashboard', company: 'admin dashboard' };
-    const showMagicLinkSent = linkStep === 'email_sent' && loginMode === 'magic_link';
 
     return (
       <Card className="shadow-lg border-0">
         <CardHeader className="text-center pb-2 relative">
-          {!showMagicLinkSent && (
-            <Button variant="ghost" size="sm" className="absolute left-4 top-4"
-              onClick={() => { resetForm(); setView('main'); }}>
-              <ArrowLeft size={16} className="mr-1" /> Back
-            </Button>
-          )}
+          <Button variant="ghost" size="sm" className="absolute left-4 top-4"
+            onClick={() => { resetForm(); setView('main'); }}>
+            <ArrowLeft size={16} className="mr-1" /> Back
+          </Button>
           <div className="pt-6">
             <CardTitle className="text-2xl font-bold">{titles[type]}</CardTitle>
             <CardDescription className="text-muted-foreground">
-              {showMagicLinkSent
-                ? 'Check your inbox and click the link we sent to login. The link is valid for a limited time.'
-                : `Sign in to access your ${descriptions[type]}`}
+              Sign in to access your {descriptions[type]}
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
-          {showMagicLinkSent ? (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Check your inbox and click the link we sent to login. The link is valid for a limited time.
-              </p>
-              <p className="text-xs text-muted-foreground/80 font-mono break-all">
-                Link will open at: {getAuthRedirectUrl()}
-              </p>
-              <div className="flex flex-col gap-2">
-                <Button type="button" variant="outline" className="w-full" disabled={loading}
-                  onClick={() => supabase.auth.signInWithOtp({
-                    email,
-                    options: { shouldCreateUser: true, emailRedirectTo: getAuthRedirectUrl() },
-                  }).then(() => toast({ title: 'Link resent', description: 'Check your inbox.' }))}>
-                  Resend login link
-                </Button>
-                <Button type="button" variant="ghost" className="w-full" onClick={() => setLinkStep('email')}>
-                  ← Change email
-                </Button>
-              </div>
+          <form onSubmit={handleSignInWithPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="login-email">Email</Label>
+              <Input id="login-email" type="email" placeholder="you@example.com" autoComplete="email"
+                value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
-          ) : loginMode === 'password' ? (
-            <form onSubmit={handleSignInWithPassword} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="login-email">Email</Label>
-                <Input id="login-email" type="email" placeholder="you@example.com" autoComplete="email"
-                  value={email} onChange={(e) => setEmail(e.target.value)} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="login-password">Password</Label>
-                <Input id="login-password" type="password" placeholder="••••••••" autoComplete="current-password"
-                  value={password} onChange={(e) => setPassword(e.target.value)} required />
-              </div>
-              <Button type="submit" variant="wellness" size="lg" className="w-full" disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <KeyRound size={16} className="mr-2" />}
-                {loading ? 'Signing in...' : 'Sign in'}
-              </Button>
-              <div className="flex flex-col gap-2 text-center">
-                <button type="button" className="text-sm text-muted-foreground hover:text-foreground underline"
-                  onClick={handleForgotPassword} disabled={loading}>
-                  Forgot password?
-                </button>
-                <button type="button" className="text-sm text-muted-foreground hover:text-foreground"
-                  onClick={() => { setLoginMode('magic_link'); setLinkStep('email'); }}>
-                  Use magic link instead
-                </button>
-              </div>
-            </form>
-          ) : (
-            <form onSubmit={(e) => handleSendMagicLink(e, type)} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="login-email">Email</Label>
-                <Input id="login-email" type="email" placeholder="you@example.com" autoComplete="email"
-                  value={email} onChange={(e) => setEmail(e.target.value)} required />
-              </div>
-              <Button type="submit" variant="wellness" size="lg" className="w-full" disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Mail size={16} className="mr-2" />}
-                {loading ? 'Sending...' : 'Send Login Link'}
-              </Button>
-              <button type="button" className="w-full text-sm text-muted-foreground hover:text-foreground"
-                onClick={() => setLoginMode('password')}>
-                Sign in with password instead
-              </button>
-            </form>
-          )}
+            <div className="space-y-2">
+              <Label htmlFor="login-password">Password</Label>
+              <Input id="login-password" type="password" placeholder="••••••••" autoComplete="current-password"
+                value={password} onChange={(e) => setPassword(e.target.value)} required />
+            </div>
+            <Button type="submit" variant="wellness" size="lg" className="w-full" disabled={loading}>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <KeyRound size={16} className="mr-2" />}
+              {loading ? 'Signing in...' : 'Sign in'}
+            </Button>
+            <button type="button" className="block w-full text-center text-sm text-muted-foreground hover:text-foreground underline"
+              onClick={handleForgotPassword} disabled={loading}>
+              Forgot password?
+            </button>
+          </form>
         </CardContent>
       </Card>
     );
@@ -310,69 +243,53 @@ const handleSendMagicLink = async (e: React.FormEvent, type: 'employee' | 'speci
         <div className="pt-6">
           <CardTitle className="text-2xl font-bold">Register Your Company</CardTitle>
           <CardDescription className="text-muted-foreground">
-            {linkStep === 'email'
-              ? 'Create an account with your company email'
-              : `We sent a sign-up link to ${email}`}
+            Create an account with your company email
           </CardDescription>
         </div>
       </CardHeader>
       <CardContent>
-        {linkStep === 'email' ? (
-          <form onSubmit={handleRegisterSendMagicLink} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="company-name">Company Name</Label>
-              <Input id="company-name" type="text" placeholder="Acme Inc."
-                value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="full-name">Your Full Name</Label>
-              <Input id="full-name" type="text" placeholder="John Doe"
-                value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="register-email">Company Email</Label>
-              <Input id="register-email" type="email" placeholder="you@company.com"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); validateCompanyEmail(e.target.value); }}
-                className={emailError ? 'border-destructive' : ''} required />
-              {emailError && (
-                <p className="text-sm text-destructive flex items-center gap-1">
-                  <AlertCircle size={14} />{emailError}
-                </p>
-              )}
-              {email && !emailError && isCompanyEmail(email) && (
-                <p className="text-sm text-primary flex items-center gap-1">
-                  <CheckCircle2 size={14} />Valid company email
-                </p>
-              )}
-            </div>
-            <Button type="submit" variant="wellness" size="lg" className="w-full"
-              disabled={loading || !!emailError}>
-              {loading ? 'Sending...' : 'Send Sign-Up Link'}
-            </Button>
-          </form>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Check your inbox and click the link we sent to login. The link is valid for a limited time.
-            </p>
-            <div className="flex flex-col gap-2">
-              <Button type="button" variant="outline" className="w-full" disabled={loading}
-                onClick={() => {
-                  sessionStorage.setItem(PENDING_REGISTER_KEY, JSON.stringify({ companyName, fullName, email: email.toLowerCase() }));
-                  supabase.auth.signInWithOtp({
-                    email,
-                    options: { shouldCreateUser: true, emailRedirectTo: getAuthRedirectUrl() },
-                  }).then(() => toast({ title: 'Link resent', description: 'Check your inbox.' }));
-                }}>
-                Resend sign-up link
-              </Button>
-              <Button type="button" variant="ghost" className="w-full" onClick={() => setLinkStep('email')}>
-                ← Change email
-              </Button>
-            </div>
+        <form onSubmit={handleRegisterWithPassword} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="company-name">Company Name</Label>
+            <Input id="company-name" type="text" placeholder="Acme Inc."
+              value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
           </div>
-        )}
+          <div className="space-y-2">
+            <Label htmlFor="full-name">Your Full Name</Label>
+            <Input id="full-name" type="text" placeholder="John Doe"
+              value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="register-email">Company Email</Label>
+            <Input id="register-email" type="email" placeholder="you@company.com" autoComplete="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); validateCompanyEmail(e.target.value); }}
+              className={emailError ? 'border-destructive' : ''} required />
+            {emailError && (
+              <p className="text-sm text-destructive flex items-center gap-1">
+                <AlertCircle size={14} />{emailError}
+              </p>
+            )}
+            {email && !emailError && isCompanyEmail(email) && (
+              <p className="text-sm text-primary flex items-center gap-1">
+                <CheckCircle2 size={14} />Valid company email
+              </p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="register-password">Password</Label>
+            <Input id="register-password" type="password" placeholder="••••••••" autoComplete="new-password"
+              value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+          </div>
+          <Button type="submit" variant="wellness" size="lg" className="w-full"
+            disabled={loading || !!emailError}>
+            {loading ? (
+              <><Loader2 className="w-4 h-4 animate-spin mr-2 inline" />Creating account...</>
+            ) : (
+              'Create account'
+            )}
+          </Button>
+        </form>
       </CardContent>
     </Card>
   );

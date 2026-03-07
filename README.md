@@ -73,7 +73,7 @@ The **login link in the email** is decided by the **build** that served the page
 
 - **Authentication** → **URL Configuration**:
   - **Site URL:** set to `https://hollyaidapp.netlify.app` (or your main production URL).
-  - **Redirect URLs:** include `https://hollyaidapp.netlify.app/auth/callback`.
+  - **Redirect URLs:** include `https://hollyaidapp.netlify.app/auth/callback` and `https://hollyaidapp.netlify.app/reset-password`.
 
 ### 5. Use a new email
 
@@ -110,14 +110,17 @@ If the link fails right after clicking, some email providers (e.g. Microsoft Saf
 
 If the link fails even within 1–2 minutes:
 
-1. **Redirect URL allow list**  
+1. **Links open on Lovable (hollyaid.lovable.app) instead of Netlify**  
+   Supabase uses **Site URL** to build every link in auth emails (magic link, password reset). If Site URL is `https://hollyaid.lovable.app`, all those links will point to Lovable and you’ll see “expired or invalid” if that build or domain isn’t the one you use. Set **Site URL** to your real app URL (e.g. `https://hollyaidapp.netlify.app`) and add both `/auth/callback` and `/reset-password` to **Redirect URLs**.
+
+2. **Redirect URL allow list**
    Supabase must allow your callback URL. In the Dashboard go to **Authentication** → **URL Configuration** and add the callback URL for **each** domain where users actually log in (match exactly, including `https`, no trailing slash). For example:
    - Production: `https://hollyaid.com/auth/callback` or `https://hollyaidapp.netlify.app/auth/callback`
    - Local: `http://localhost:8080/auth/callback`
    - Only add `https://hollyaid.lovable.app/auth/callback` if you use that URL for testing or staging.
 
-2. **Site URL**  
+3. **Site URL**  
    Set **Site URL** to your main app URL (e.g. `https://hollyaid.com`).
 
-3. **Email link prefetching**  
+4. **Email link prefetching**  
    Some mail clients or security scanners open links in the background and consume the one-time token. If that happens, the user will see "expired or invalid" when they click. Try from a different email client or request a new link.
