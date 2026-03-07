@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { isCompanyEmail, getEmailDomain } from '@/lib/supabase';
-import { getAuthRedirectUrl } from '@/lib/authRedirect';
+import { getAuthRedirectUrl, getAuthBaseUrl } from '@/lib/authRedirect';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import Logo from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Users, AlertCircle, CheckCircle2, Loader2, HandHeart, ArrowLeft, Mail } from 'lucide-react';
+import { Building2, Users, AlertCircle, CheckCircle2, Loader2, HandHeart, ArrowLeft, Mail, KeyRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import PlanSelection, { Plan } from '@/components/PlanSelection';
 import { isTestAccountEmail } from '@/lib/plans';
@@ -17,10 +18,13 @@ import { PENDING_REGISTER_KEY } from '@/pages/AuthCallback';
 type AuthView = 'main' | 'employee-login' | 'specialist-login' | 'company-login' | 'register' | 'select-plan';
 type LinkStep = 'email' | 'email_sent';
 
+type LoginMode = 'magic_link' | 'password';
+
 const Auth: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { signIn } = useAuth();
 
   // Restore view/state when returning from callback (e.g. select-plan after magic-link signup)
   useEffect(() => {
@@ -34,6 +38,8 @@ const Auth: React.FC = () => {
 
   const [view, setView] = useState<AuthView>('main');
   const [linkStep, setLinkStep] = useState<LinkStep>('email');
+  const [loginMode, setLoginMode] = useState<LoginMode>('password');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
@@ -54,12 +60,50 @@ const Auth: React.FC = () => {
 
   const resetForm = () => {
     setEmail('');
+    setPassword('');
     setFullName('');
     setCompanyName('');
     setEmailError('');
     setLinkStep('email');
     setSelectedPlanId('');
     setRegisteredUserId(null);
+  };
+
+  const handleSignInWithPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      toast({ title: 'Enter your email', variant: 'destructive' });
+      return;
+    }
+    if (!password) {
+      toast({ title: 'Enter your password', variant: 'destructive' });
+      return;
+    }
+    setLoading(true);
+    const { error } = await signIn(email.trim(), password);
+    setLoading(false);
+    if (error) {
+      toast({ title: 'Login failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    navigate('/', { replace: true });
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      toast({ title: 'Enter your email first', variant: 'destructive' });
+      return;
+    }
+    setLoading(true);
+    const redirectTo = `${getAuthBaseUrl()}/reset-password`;
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+    setLoading(false);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Check your email', description: 'We sent a link to set or reset your password.' });
   };
 
 const handleSendMagicLink = async (e: React.FormEvent, type: 'employee' | 'specialist' | 'company') => {
@@ -165,11 +209,12 @@ const handleSendMagicLink = async (e: React.FormEvent, type: 'employee' | 'speci
   const renderLoginForm = (type: 'employee' | 'specialist' | 'company') => {
     const titles = { employee: 'Employee Login', specialist: 'Specialist Login', company: 'Company Login' };
     const descriptions = { employee: 'wellness portal', specialist: 'dashboard', company: 'admin dashboard' };
+    const showMagicLinkSent = linkStep === 'email_sent' && loginMode === 'magic_link';
 
     return (
       <Card className="shadow-lg border-0">
         <CardHeader className="text-center pb-2 relative">
-          {linkStep === 'email' && (
+          {!showMagicLinkSent && (
             <Button variant="ghost" size="sm" className="absolute left-4 top-4"
               onClick={() => { resetForm(); setView('main'); }}>
               <ArrowLeft size={16} className="mr-1" /> Back
@@ -178,26 +223,14 @@ const handleSendMagicLink = async (e: React.FormEvent, type: 'employee' | 'speci
           <div className="pt-6">
             <CardTitle className="text-2xl font-bold">{titles[type]}</CardTitle>
             <CardDescription className="text-muted-foreground">
-              {linkStep === 'email'
-                ? `Sign in to access your ${descriptions[type]}`
-                : 'Check your inbox and click the link we sent to login. The link is valid for a limited time.'}
+              {showMagicLinkSent
+                ? 'Check your inbox and click the link we sent to login. The link is valid for a limited time.'
+                : `Sign in to access your ${descriptions[type]}`}
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
-          {linkStep === 'email' ? (
-            <form onSubmit={(e) => handleSendMagicLink(e, type)} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="login-email">Email</Label>
-                <Input id="login-email" type="email" placeholder="you@example.com"
-                  value={email} onChange={(e) => setEmail(e.target.value)} required />
-              </div>
-              <Button type="submit" variant="wellness" size="lg" className="w-full" disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Mail size={16} className="mr-2" />}
-                {loading ? 'Sending...' : 'Send Login Link'}
-              </Button>
-            </form>
-          ) : (
+          {showMagicLinkSent ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 Check your inbox and click the link we sent to login. The link is valid for a limited time.
@@ -218,6 +251,49 @@ const handleSendMagicLink = async (e: React.FormEvent, type: 'employee' | 'speci
                 </Button>
               </div>
             </div>
+          ) : loginMode === 'password' ? (
+            <form onSubmit={handleSignInWithPassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="login-email">Email</Label>
+                <Input id="login-email" type="email" placeholder="you@example.com" autoComplete="email"
+                  value={email} onChange={(e) => setEmail(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="login-password">Password</Label>
+                <Input id="login-password" type="password" placeholder="••••••••" autoComplete="current-password"
+                  value={password} onChange={(e) => setPassword(e.target.value)} required />
+              </div>
+              <Button type="submit" variant="wellness" size="lg" className="w-full" disabled={loading}>
+                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <KeyRound size={16} className="mr-2" />}
+                {loading ? 'Signing in...' : 'Sign in'}
+              </Button>
+              <div className="flex flex-col gap-2 text-center">
+                <button type="button" className="text-sm text-muted-foreground hover:text-foreground underline"
+                  onClick={handleForgotPassword} disabled={loading}>
+                  Forgot password?
+                </button>
+                <button type="button" className="text-sm text-muted-foreground hover:text-foreground"
+                  onClick={() => { setLoginMode('magic_link'); setLinkStep('email'); }}>
+                  Use magic link instead
+                </button>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={(e) => handleSendMagicLink(e, type)} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="login-email">Email</Label>
+                <Input id="login-email" type="email" placeholder="you@example.com" autoComplete="email"
+                  value={email} onChange={(e) => setEmail(e.target.value)} required />
+              </div>
+              <Button type="submit" variant="wellness" size="lg" className="w-full" disabled={loading}>
+                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Mail size={16} className="mr-2" />}
+                {loading ? 'Sending...' : 'Send Login Link'}
+              </Button>
+              <button type="button" className="w-full text-sm text-muted-foreground hover:text-foreground"
+                onClick={() => setLoginMode('password')}>
+                Sign in with password instead
+              </button>
+            </form>
           )}
         </CardContent>
       </Card>

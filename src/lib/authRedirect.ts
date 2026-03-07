@@ -5,16 +5,22 @@ const normalizeBaseUrl = (raw: string) => {
 };
 
 /**
+ * Base URL for the app (origin). Used for reset-password redirect etc.
+ */
+export const getAuthBaseUrl = () => {
+  const configuredBase = normalizeBaseUrl(import.meta.env.VITE_AUTH_REDIRECT_URL ?? '');
+  if (configuredBase) {
+    return configuredBase.replace(/\/auth\/callback\/?$/, '').replace(/\/$/, '') || window.location.origin;
+  }
+  return window.location.origin;
+};
+
+/**
  * Returns the callback URL used by Supabase auth emails.
  * If VITE_AUTH_REDIRECT_URL is set (e.g. https://app.hollyaid.com), it is used.
  * Otherwise we fall back to the current origin.
  */
 export const getAuthRedirectUrl = () => {
-  const configuredBase = normalizeBaseUrl(import.meta.env.VITE_AUTH_REDIRECT_URL ?? '');
-  if (configuredBase) {
-    return configuredBase.endsWith('/auth/callback')
-      ? configuredBase
-      : `${configuredBase}/auth/callback`;
-  }
-  return `${window.location.origin}/auth/callback`;
+  const base = getAuthBaseUrl();
+  return `${base}/auth/callback`;
 };
