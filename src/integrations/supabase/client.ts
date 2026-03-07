@@ -13,5 +13,6 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: false, // we handle magic-link callback in AuthCallback so tokens aren't consumed before we can exchange them
   }
 });

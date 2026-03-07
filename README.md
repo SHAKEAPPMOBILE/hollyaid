@@ -62,3 +62,19 @@ To set magic links to expire after **10 minutes**:
 4. If your plan uses the Management API, you can also set `mailer_otp_exp` to `600` in the auth config.
 
 If the link fails right after clicking, some email providers (e.g. Microsoft Safe Links) prefetch links and consume the one-time token. In that case, use a different email client or ask users to request a new link.
+
+## Magic link "expired or invalid" right after clicking
+
+If the link fails even within 1–2 minutes:
+
+1. **Redirect URL allow list**  
+   Supabase must allow your callback URL. In the Dashboard go to **Authentication** → **URL Configuration** and add every URL you use, for example:
+   - `https://hollyaid.com/auth/callback`
+   - `https://hollyaid.lovable.app/auth/callback`  
+   (and any other domains where the app runs). The value must match exactly (including `https` and no trailing slash).
+
+2. **Site URL**  
+   Set **Site URL** to your main app URL (e.g. `https://hollyaid.com`).
+
+3. **Email link prefetching**  
+   Some mail clients or security scanners open links in the background and consume the one-time token. If that happens, the user will see "expired or invalid" when they click. Try from a different email client or request a new link.

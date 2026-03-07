@@ -54,18 +54,30 @@ const AuthCallback: React.FC = () => {
       const hashParams = new URLSearchParams(location.hash.startsWith('#') ? location.hash.slice(1) : location.hash);
       const accessToken = hashParams.get('access_token');
       const refreshToken = hashParams.get('refresh_token');
+      const hashError = hashParams.get('error');
+      const hashErrorDesc = hashParams.get('error_description');
 
-      // Handle PKCE auth callbacks (?code=...)
+      // Supabase may redirect with error in hash (e.g. redirect_uri_mismatch, expired)
+      if (hashError) {
+        const msg = hashErrorDesc || hashError;
+        setError(msg.includes('redirect') ? 'Login link could not be completed. Please ensure this app\'s URL is allowed in Supabase (Redirect URLs).' : 'Login link expired or invalid. Please request a new one.');
+        setTimeout(() => navigate('/auth'), 3000);
+        return;
+      }
+
+      // 1) PKCE: exchange code for session (?code=...)
       if (code) {
         const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
         if (exchangeError) {
-          setError('Login link expired or invalid. Please request a new one.');
-          setTimeout(() => navigate('/auth'), 3000);
+          if (import.meta.env.DEV) console.error('Auth callback exchangeCodeForSession:', exchangeError);
+          const isRedirect = /redirect|uri|url/i.test(exchangeError.message);
+          setError(isRedirect ? 'Login link could not be completed. Add this exact URL to Supabase Dashboard → Auth → URL Configuration → Redirect URLs: ' + window.location.origin + '/auth/callback' : 'Login link expired or invalid. Please request a new one.');
+          setTimeout(() => navigate('/auth'), 5000);
           return;
         }
       }
 
-      // Handle token hash callbacks (?token_hash=...&type=...)
+      // 2) Token hash (?token_hash=...&type=...)
       if (tokenHash && tokenType) {
         const { error: verifyHashError } = await supabase.auth.verifyOtp({
           token_hash: tokenHash,
@@ -73,19 +85,21 @@ const AuthCallback: React.FC = () => {
         });
 
         if (verifyHashError) {
+          if (import.meta.env.DEV) console.error('Auth callback verifyOtp:', verifyHashError);
           setError('Login link expired or invalid. Please request a new one.');
           setTimeout(() => navigate('/auth'), 3000);
           return;
         }
       }
 
-      // Handle implicit-flow callbacks (#access_token=...&refresh_token=...)
+      // 3) Implicit flow (#access_token=...&refresh_token=...)
       if (accessToken && refreshToken) {
         const { error: setSessionError } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
         });
         if (setSessionError) {
+          if (import.meta.env.DEV) console.error('Auth callback setSession:', setSessionError);
           setError('Login link expired or invalid. Please request a new one.');
           setTimeout(() => navigate('/auth'), 3000);
           return;
