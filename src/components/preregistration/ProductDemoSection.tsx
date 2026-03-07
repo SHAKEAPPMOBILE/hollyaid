@@ -1,8 +1,14 @@
+import { useState } from "react";
 import { Play } from "lucide-react";
 
 const YOUTUBE_ID = import.meta.env.VITE_DEMO_VIDEO_YOUTUBE_ID as string | undefined;
+/** URL for a short (e.g. 7s) dashboard demo video. If unset, uses /demo-dashboard.mp4 from public. */
+const DEMO_VIDEO_SRC = (import.meta.env.VITE_DEMO_VIDEO_URL as string) || "/demo-dashboard.mp4";
 
 export function ProductDemoSection() {
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+
   return (
     <section
       id="product-demo"
@@ -28,18 +34,29 @@ export function ProductDemoSection() {
               allowFullScreen
             />
           ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                <Play className="w-8 h-8 text-primary" />
-              </div>
-              <p className="text-muted-foreground font-medium">
-                Product demo video
-              </p>
-              <p className="text-sm text-muted-foreground max-w-md">
-                Add your YouTube video ID in <code className="px-1.5 py-0.5 rounded bg-muted text-foreground">.env</code> as{" "}
-                <code className="px-1.5 py-0.5 rounded bg-muted text-foreground">VITE_DEMO_VIDEO_YOUTUBE_ID</code> to show your demo here.
-              </p>
-            </div>
+            <>
+              <video
+                className={`absolute inset-0 w-full h-full object-cover ${videoError ? "hidden" : ""}`}
+                src={DEMO_VIDEO_SRC}
+                autoPlay
+                muted
+                loop
+                playsInline
+                title="Hollyaid dashboard demo"
+                onCanPlay={() => setVideoReady(true)}
+                onError={() => setVideoError(true)}
+              />
+              {(!videoReady || videoError) && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center bg-muted/30" aria-hidden>
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Play className="w-8 h-8 text-primary" />
+                  </div>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    Add a 7-second dashboard video as <code className="px-1.5 py-0.5 rounded bg-muted text-foreground">public/demo-dashboard.mp4</code> or set <code className="px-1.5 py-0.5 rounded bg-muted text-foreground">VITE_DEMO_VIDEO_URL</code>.
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

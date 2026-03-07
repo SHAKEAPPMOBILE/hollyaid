@@ -109,8 +109,14 @@ const AuthCallback: React.FC = () => {
       const session = await getSessionWithRetry();
 
       if (!session) {
-        setError('Login link expired or invalid. Please request a new one.');
-        setTimeout(() => navigate('/auth'), 3000);
+        const hasAnyParam = code || (tokenHash && tokenType) || (accessToken && refreshToken);
+        const callbackUrl = `${window.location.origin}/auth/callback`;
+        if (!hasAnyParam) {
+          setError(`No login data was received. Add this URL in Supabase: Authentication → URL Configuration → Redirect URLs → ${callbackUrl}`);
+        } else {
+          setError('Login link expired or invalid. Please request a new one.');
+        }
+        setTimeout(() => navigate('/auth'), 5000);
         return;
       }
 

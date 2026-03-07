@@ -50,6 +50,18 @@ Yes, you can!
 
 To connect a domain, configure it through your hosting provider's dashboard.
 
+## Magic link: send users to Netlify (not Lovable)
+
+The **login link in the email** sends users to the URL configured when the app was built. If you deploy on **Netlify** and want the link to open your Netlify app (not Lovable), set this in **Netlify**:
+
+1. Netlify Dashboard → **hollyaidapp** → **Site configuration** → **Environment variables** (or **Project configuration** → **Environment**).
+2. Add a variable:
+   - **Key:** `VITE_AUTH_REDIRECT_URL`
+   - **Value:** your production callback URL, e.g. `https://hollyaidapp.netlify.app` or `https://hollyaid.com` (no trailing slash; the code adds `/auth/callback`).
+3. **Redeploy** the site so the new value is baked into the build.
+
+After that, new magic-link emails will point to that URL, so users land on your Netlify (or custom domain) app instead of Lovable. Supabase **Redirect URLs** must still include that same URL (e.g. `https://hollyaidapp.netlify.app/auth/callback`).
+
 ## Magic link expiry (10 minutes)
 
 Login links are sent by Supabase Auth. Expiry is configured in the **Supabase Dashboard**, not in this repo.
@@ -68,10 +80,10 @@ If the link fails right after clicking, some email providers (e.g. Microsoft Saf
 If the link fails even within 1–2 minutes:
 
 1. **Redirect URL allow list**  
-   Supabase must allow your callback URL. In the Dashboard go to **Authentication** → **URL Configuration** and add every URL you use, for example:
-   - `https://hollyaid.com/auth/callback`
-   - `https://hollyaid.lovable.app/auth/callback`  
-   (and any other domains where the app runs). The value must match exactly (including `https` and no trailing slash).
+   Supabase must allow your callback URL. In the Dashboard go to **Authentication** → **URL Configuration** and add the callback URL for **each** domain where users actually log in (match exactly, including `https`, no trailing slash). For example:
+   - Production: `https://hollyaid.com/auth/callback` or `https://hollyaidapp.netlify.app/auth/callback`
+   - Local: `http://localhost:8080/auth/callback`
+   - Only add `https://hollyaid.lovable.app/auth/callback` if you use that URL for testing or staging.
 
 2. **Site URL**  
    Set **Site URL** to your main app URL (e.g. `https://hollyaid.com`).
