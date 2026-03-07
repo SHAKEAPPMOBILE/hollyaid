@@ -202,6 +202,9 @@ const handleSendMagicLink = async (e: React.FormEvent, type: 'employee' | 'speci
               <p className="text-sm text-muted-foreground">
                 Check your inbox and click the link we sent to login. The link is valid for a limited time.
               </p>
+              <p className="text-xs text-muted-foreground/80 font-mono break-all">
+                Link will open at: {getAuthRedirectUrl()}
+              </p>
               <div className="flex flex-col gap-2">
                 <Button type="button" variant="outline" className="w-full" disabled={loading}
                   onClick={() => supabase.auth.signInWithOtp({

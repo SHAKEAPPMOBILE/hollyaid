@@ -52,15 +52,34 @@ To connect a domain, configure it through your hosting provider's dashboard.
 
 ## Magic link: send users to Netlify (not Lovable)
 
-The **login link in the email** sends users to the URL configured when the app was built. If you deploy on **Netlify** and want the link to open your Netlify app (not Lovable), set this in **Netlify**:
+The **login link in the email** is decided by the **build** that served the page where you clicked "Send Login Link". If that build was from Lovable (e.g. you were on hollyaid.com and that domain points to Lovable), the email will contain the Lovable URL no matter what you set in Netlify.
 
-1. Netlify Dashboard → **hollyaidapp** → **Site configuration** → **Environment variables** (or **Project configuration** → **Environment**).
-2. Add a variable:
-   - **Key:** `VITE_AUTH_REDIRECT_URL`
-   - **Value:** your production callback URL, e.g. `https://hollyaidapp.netlify.app` or `https://hollyaid.com` (no trailing slash; the code adds `/auth/callback`).
-3. **Redeploy** the site so the new value is baked into the build.
+### 1. Set the env var in Netlify
 
-After that, new magic-link emails will point to that URL, so users land on your Netlify (or custom domain) app instead of Lovable. Supabase **Redirect URLs** must still include that same URL (e.g. `https://hollyaidapp.netlify.app/auth/callback`).
+- Netlify Dashboard → **hollyaidapp** → **Site configuration** → **Environment variables**.
+- Add: **Key** `VITE_AUTH_REDIRECT_URL`, **Value** `https://hollyaidapp.netlify.app` (no trailing slash).
+
+### 2. Trigger a new deploy
+
+- The value is baked in at **build time**. After adding the variable, run **"Trigger deploy"** → **"Clear cache and deploy site"** (or push a commit) so Netlify rebuilds with the new env var.
+
+### 3. Request the link from the Netlify URL only
+
+- Open **https://hollyaidapp.netlify.app** (not hollyaid.com if that still points to Lovable).
+- Go to **Login** → enter email → **Send Login Link**.
+- The email you get will then point to `hollyaidapp.netlify.app/auth/callback` because the page that sent it was the Netlify build.
+
+### 4. Supabase: Site URL and Redirect URLs
+
+- **Authentication** → **URL Configuration**:
+  - **Site URL:** set to `https://hollyaidapp.netlify.app` (or your main production URL).
+  - **Redirect URLs:** include `https://hollyaidapp.netlify.app/auth/callback`.
+
+### 5. Use a new email
+
+- Don’t reuse an old magic-link email. After the steps above, request a **new** link from **hollyaidapp.netlify.app** and click the link in that new email.
+
+If hollyaid.com is your main domain and it currently points to Lovable, either point **hollyaid.com** to Netlify in DNS and set `VITE_AUTH_REDIRECT_URL` to `https://hollyaid.com`, or use **hollyaidapp.netlify.app** for login until the domain is switched.
 
 ## Magic link expiry (10 minutes)
 

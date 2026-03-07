@@ -57,11 +57,12 @@ const AuthCallback: React.FC = () => {
       const hashError = hashParams.get('error');
       const hashErrorDesc = hashParams.get('error_description');
 
-      // Supabase may redirect with error in hash (e.g. redirect_uri_mismatch, expired)
+      // Supabase may redirect with error in hash (e.g. redirect_uri_mismatch, otp_expired)
       if (hashError) {
         const msg = hashErrorDesc || hashError;
-        setError(msg.includes('redirect') ? 'Login link could not be completed. Please ensure this app\'s URL is allowed in Supabase (Redirect URLs).' : 'Login link expired or invalid. Please request a new one.');
-        setTimeout(() => navigate('/auth'), 3000);
+        const decoded = typeof msg === 'string' ? decodeURIComponent(msg.replace(/\+/g, ' ')) : msg;
+        setError(decoded.includes('redirect') ? `Login failed. Add ${window.location.origin}/auth/callback to Supabase Redirect URLs and set Site URL to ${window.location.origin}.` : `Login link expired or invalid. ${decoded}`);
+        setTimeout(() => navigate('/auth'), 8000);
         return;
       }
 
@@ -71,8 +72,9 @@ const AuthCallback: React.FC = () => {
         if (exchangeError) {
           if (import.meta.env.DEV) console.error('Auth callback exchangeCodeForSession:', exchangeError);
           const isRedirect = /redirect|uri|url/i.test(exchangeError.message);
-          setError(isRedirect ? 'Login link could not be completed. Add this exact URL to Supabase Dashboard → Auth → URL Configuration → Redirect URLs: ' + window.location.origin + '/auth/callback' : 'Login link expired or invalid. Please request a new one.');
-          setTimeout(() => navigate('/auth'), 5000);
+          const detail = isRedirect ? `Add this URL in Supabase → Auth → URL Configuration → Redirect URLs: ${window.location.origin}/auth/callback. Also set Site URL to ${window.location.origin}.` : exchangeError.message;
+          setError(`Login failed: ${detail}`);
+          setTimeout(() => navigate('/auth'), 8000);
           return;
         }
       }
@@ -86,8 +88,8 @@ const AuthCallback: React.FC = () => {
 
         if (verifyHashError) {
           if (import.meta.env.DEV) console.error('Auth callback verifyOtp:', verifyHashError);
-          setError('Login link expired or invalid. Please request a new one.');
-          setTimeout(() => navigate('/auth'), 3000);
+          setError(`Login link expired or invalid. ${verifyHashError.message || 'Please request a new one.'}`);
+          setTimeout(() => navigate('/auth'), 5000);
           return;
         }
       }
@@ -112,11 +114,11 @@ const AuthCallback: React.FC = () => {
         const hasAnyParam = code || (tokenHash && tokenType) || (accessToken && refreshToken);
         const callbackUrl = `${window.location.origin}/auth/callback`;
         if (!hasAnyParam) {
-          setError(`No login data was received. Add this URL in Supabase: Authentication → URL Configuration → Redirect URLs → ${callbackUrl}`);
+          setError(`No login data in URL. The email link may be pointing to another domain. In Supabase set Site URL to ${window.location.origin} and add Redirect URL: ${callbackUrl}`);
         } else {
           setError('Login link expired or invalid. Please request a new one.');
         }
-        setTimeout(() => navigate('/auth'), 5000);
+        setTimeout(() => navigate('/auth'), 8000);
         return;
       }
 
@@ -185,7 +187,7 @@ const AuthCallback: React.FC = () => {
       <Logo size="md" />
       <div className="mt-8 text-center">
         {error ? (
-          <p className="text-destructive">{error} Redirecting to login...</p>
+          <p className="text-destructive max-w-md mx-auto text-left break-words">{error} Redirecting to login...</p>
         ) : (
           <>
             <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
