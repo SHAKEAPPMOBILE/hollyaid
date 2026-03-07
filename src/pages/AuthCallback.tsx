@@ -5,6 +5,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { getCompanyAdminAccess } from '@/lib/companyAdminAccess';
 import Logo from '@/components/Logo';
 import { Loader2 } from 'lucide-react';
+import { getEmailDomain } from '@/lib/supabase';
+import { isTestAccountEmail } from '@/lib/plans';
+
+const PENDING_REGISTER_KEY = 'hollyaid_pending_register';
+
+export interface PendingRegister {
+  companyName: string;
+  fullName: string;
+  email: string;
+}
 
 const CALLBACK_OTP_TYPES = new Set<EmailOtpType>([
   'signup',
@@ -91,6 +101,34 @@ const AuthCallback: React.FC = () => {
       }
 
       const userId = session.user.id;
+      const email = session.user.email ?? '';
+
+      // Pending company registration (magic-link signup)
+      const pendingRaw = sessionStorage.getItem(PENDING_REGISTER_KEY);
+      if (pendingRaw) {
+        try {
+          const pending: PendingRegister = JSON.parse(pendingRaw);
+          sessionStorage.removeItem(PENDING_REGISTER_KEY);
+          const domain = getEmailDomain(pending.email);
+          const { error: companyError } = await supabase.from('companies').insert({
+            name: pending.companyName,
+            email_domain: domain,
+            admin_user_id: userId,
+            subscription_status: 'unpaid',
+            is_test_account: isTestAccountEmail(pending.email),
+          });
+          if (companyError) {
+            setError('Could not create company. Please try again.');
+            setTimeout(() => navigate('/auth'), 3000);
+            return;
+          }
+          await supabase.from('user_roles').insert({ user_id: userId, role: 'company_admin' });
+          navigate('/auth', { state: { view: 'select-plan', registeredUserId: userId } });
+          return;
+        } catch {
+          sessionStorage.removeItem(PENDING_REGISTER_KEY);
+        }
+      }
 
       const { data: specialist } = await supabase
         .from('specialists').select('id').eq('user_id', userId).maybeSingle();
@@ -106,9 +144,12 @@ const AuthCallback: React.FC = () => {
       }
 
       if (isCompanyAdmin) {
-        if (company?.subscription_status === 'unpaid') { navigate('/auth'); return; }
+        if (company?.subscription_status === 'unpaid') {
+          navigate('/auth', { state: { view: 'select-plan', registeredUserId: userId } });
+          return;
+        }
         const { data: profile } = await supabase.from('profiles').select('job_title').eq('user_id', userId).single();
-        navigate(profile?.job_title ? '/dashboard' : '/complete-profile');
+        navigate(profile?.job_title ? '/admin' : '/complete-profile');
         return;
       }
 
@@ -138,3 +179,4 @@ const AuthCallback: React.FC = () => {
 };
 
 export default AuthCallback;
+export { PENDING_REGISTER_KEY };

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { isCompanyEmail, getEmailDomain } from '@/lib/supabase';
 import { getAuthRedirectUrl } from '@/lib/authRedirect';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,19 +12,30 @@ import { Building2, Users, AlertCircle, CheckCircle2, Loader2, HandHeart, ArrowL
 import { useToast } from '@/hooks/use-toast';
 import PlanSelection, { Plan } from '@/components/PlanSelection';
 import { isTestAccountEmail } from '@/lib/plans';
+import { PENDING_REGISTER_KEY } from '@/pages/AuthCallback';
 
 type AuthView = 'main' | 'employee-login' | 'specialist-login' | 'company-login' | 'register' | 'select-plan';
-type OtpStep = 'email' | 'otp';
+type LinkStep = 'email' | 'email_sent';
 
 const Auth: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
 
+  // Restore view/state when returning from callback (e.g. select-plan after magic-link signup)
+  useEffect(() => {
+    const state = location.state as { view?: AuthView; registeredUserId?: string } | null;
+    if (state?.view === 'select-plan' && state?.registeredUserId) {
+      setView('select-plan');
+      setRegisteredUserId(state.registeredUserId);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, location.pathname, navigate]);
+
   const [view, setView] = useState<AuthView>('main');
-  const [otpStep, setOtpStep] = useState<OtpStep>('email');
+  const [linkStep, setLinkStep] = useState<LinkStep>('email');
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
   const [fullName, setFullName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -43,16 +54,15 @@ const Auth: React.FC = () => {
 
   const resetForm = () => {
     setEmail('');
-    setOtp('');
     setFullName('');
     setCompanyName('');
     setEmailError('');
-    setOtpStep('email');
+    setLinkStep('email');
     setSelectedPlanId('');
     setRegisteredUserId(null);
   };
 
-  const handleSendOtp = async (e: React.FormEvent) => {
+const handleSendMagicLink = async (e: React.FormEvent, type: 'employee' | 'specialist' | 'company') => {
     e.preventDefault();
     setLoading(true);
 
@@ -67,14 +77,14 @@ const Auth: React.FC = () => {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      setOtpStep('otp');
-      toast({ title: 'Magic link sent!', description: `Check your inbox (and spam) for the login link sent to ${email}.` });
+      setLinkStep('email_sent');
+      toast({ title: 'Login link sent!', description: `Check your inbox (and spam) at ${email} and click the link to sign in.` });
     }
 
     setLoading(false);
   };
 
-  const handleRegisterSendOtp = async (e: React.FormEvent) => {
+  const handleRegisterSendMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!isCompanyEmail(email)) {
@@ -84,6 +94,12 @@ const Auth: React.FC = () => {
 
     setLoading(true);
 
+    sessionStorage.setItem(PENDING_REGISTER_KEY, JSON.stringify({
+      companyName,
+      fullName,
+      email: email.toLowerCase(),
+    }));
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -93,49 +109,12 @@ const Auth: React.FC = () => {
     });
 
     if (error) {
+      sessionStorage.removeItem(PENDING_REGISTER_KEY);
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      setOtpStep('otp');
-      toast({ title: 'Code sent!', description: `Check your inbox and enter the 6-digit code for ${email}.` });
+      setLinkStep('email_sent');
+      toast({ title: 'Check your email', description: `We sent a link to ${email}. Click it to complete registration.` });
     }
-
-    setLoading(false);
-  };
-
-  const handleRegisterVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    const { data, error } = await supabase.auth.verifyOtp({ email, token: otp, type: 'email' });
-
-    if (error || !data.user) {
-      toast({ title: 'Invalid code', description: error?.message || 'Please try again.', variant: 'destructive' });
-      setLoading(false);
-      return;
-    }
-
-    const newUser = data.user;
-    const domain = getEmailDomain(email);
-
-    const { error: companyError } = await supabase.from('companies').insert({
-      name: companyName,
-      email_domain: domain,
-      admin_user_id: newUser.id,
-      subscription_status: 'unpaid',
-      is_test_account: isTestAccountEmail(email),
-    });
-
-    if (companyError) {
-      toast({ title: 'Company creation failed', description: companyError.message, variant: 'destructive' });
-      setLoading(false);
-      return;
-    }
-
-    await supabase.from('user_roles').insert({ user_id: newUser.id, role: 'company_admin' });
-
-    setRegisteredUserId(newUser.id);
-    setView('select-plan');
-    toast({ title: 'Account created!', description: 'Now choose your wellness minutes plan.' });
 
     setLoading(false);
   };
@@ -183,14 +162,14 @@ const Auth: React.FC = () => {
     );
   }
 
-  const renderOtpForm = (type: 'employee' | 'specialist' | 'company') => {
+  const renderLoginForm = (type: 'employee' | 'specialist' | 'company') => {
     const titles = { employee: 'Employee Login', specialist: 'Specialist Login', company: 'Company Login' };
     const descriptions = { employee: 'wellness portal', specialist: 'dashboard', company: 'admin dashboard' };
 
     return (
       <Card className="shadow-lg border-0">
         <CardHeader className="text-center pb-2 relative">
-          {otpStep === 'email' && (
+          {linkStep === 'email' && (
             <Button variant="ghost" size="sm" className="absolute left-4 top-4"
               onClick={() => { resetForm(); setView('main'); }}>
               <ArrowLeft size={16} className="mr-1" /> Back
@@ -199,15 +178,15 @@ const Auth: React.FC = () => {
           <div className="pt-6">
             <CardTitle className="text-2xl font-bold">{titles[type]}</CardTitle>
             <CardDescription className="text-muted-foreground">
-              {otpStep === 'email'
+              {linkStep === 'email'
                 ? `Sign in to access your ${descriptions[type]}`
-                : 'Check your email ✉️ (spam too) to continue on Hollyaid! You can close this window! Thank you!'}
+                : `We sent a login link to ${email}. Check your inbox (and spam) and click the link to sign in.`}
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
-          {otpStep === 'email' ? (
-            <form onSubmit={handleSendOtp} className="space-y-4">
+          {linkStep === 'email' ? (
+            <form onSubmit={(e) => handleSendMagicLink(e, type)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="login-email">Email</Label>
                 <Input id="login-email" type="email" placeholder="you@example.com"
@@ -215,14 +194,26 @@ const Auth: React.FC = () => {
               </div>
               <Button type="submit" variant="wellness" size="lg" className="w-full" disabled={loading}>
                 {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Mail size={16} className="mr-2" />}
-                {loading ? 'Sending...' : 'Send Login Code'}
+                {loading ? 'Sending...' : 'Send Login Link'}
               </Button>
             </form>
           ) : (
             <div className="space-y-4">
-              <Button type="button" variant="ghost" className="w-full" onClick={() => setOtpStep('email')}>
-                ← Change email
-              </Button>
+              <p className="text-sm text-muted-foreground">
+                Check your inbox and click the link we sent to <strong>{email}</strong> to sign in. The link is valid for a limited time.
+              </p>
+              <div className="flex flex-col gap-2">
+                <Button type="button" variant="outline" className="w-full" disabled={loading}
+                  onClick={() => supabase.auth.signInWithOtp({
+                    email,
+                    options: { shouldCreateUser: true, emailRedirectTo: getAuthRedirectUrl() },
+                  }).then(() => toast({ title: 'Link resent', description: 'Check your inbox.' }))}>
+                  Resend login link
+                </Button>
+                <Button type="button" variant="ghost" className="w-full" onClick={() => setLinkStep('email')}>
+                  ← Change email
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
@@ -240,15 +231,15 @@ const Auth: React.FC = () => {
         <div className="pt-6">
           <CardTitle className="text-2xl font-bold">Register Your Company</CardTitle>
           <CardDescription className="text-muted-foreground">
-            {otpStep === 'email'
+            {linkStep === 'email'
               ? 'Create an account with your company email'
-              : `Enter the 6-digit code sent to ${email}`}
+              : `We sent a sign-up link to ${email}`}
           </CardDescription>
         </div>
       </CardHeader>
       <CardContent>
-        {otpStep === 'email' ? (
-          <form onSubmit={handleRegisterSendOtp} className="space-y-4">
+        {linkStep === 'email' ? (
+          <form onSubmit={handleRegisterSendMagicLink} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="company-name">Company Name</Label>
               <Input id="company-name" type="text" placeholder="Acme Inc."
@@ -278,33 +269,30 @@ const Auth: React.FC = () => {
             </div>
             <Button type="submit" variant="wellness" size="lg" className="w-full"
               disabled={loading || !!emailError}>
-              {loading ? 'Sending...' : 'Send Verification Code'}
+              {loading ? 'Sending...' : 'Send Sign-Up Link'}
             </Button>
           </form>
         ) : (
-          <form onSubmit={handleRegisterVerifyOtp} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="otp-code">Verification Code</Label>
-              <Input id="otp-code" type="text" placeholder="123456" maxLength={6}
-                value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} required />
-              <p className="text-xs text-muted-foreground">
-                Use the 6-digit code from your email. If a one-time link opens another site, return here and paste the code.
-              </p>
-              <p className="text-xs text-muted-foreground">Didn't receive it?{' '}
-                <button type="button" className="text-primary underline"
-                  onClick={() => supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: getAuthRedirectUrl() } })
-                    .then(() => toast({ title: 'Code resent!', description: 'Check your inbox.' }))}>
-                  Resend code
-                </button>
-              </p>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Check your inbox and click the link we sent to <strong>{email}</strong> to complete your company registration. The link is valid for a limited time.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button type="button" variant="outline" className="w-full" disabled={loading}
+                onClick={() => {
+                  sessionStorage.setItem(PENDING_REGISTER_KEY, JSON.stringify({ companyName, fullName, email: email.toLowerCase() }));
+                  supabase.auth.signInWithOtp({
+                    email,
+                    options: { shouldCreateUser: true, emailRedirectTo: getAuthRedirectUrl() },
+                  }).then(() => toast({ title: 'Link resent', description: 'Check your inbox.' }));
+                }}>
+                Resend sign-up link
+              </Button>
+              <Button type="button" variant="ghost" className="w-full" onClick={() => setLinkStep('email')}>
+                ← Change email
+              </Button>
             </div>
-            <Button type="submit" variant="wellness" size="lg" className="w-full" disabled={loading}>
-              {loading ? 'Creating Account...' : 'Verify & Create Account'}
-            </Button>
-            <Button type="button" variant="ghost" className="w-full" onClick={() => setOtpStep('email')}>
-              ← Change email
-            </Button>
-          </form>
+          </div>
         )}
       </CardContent>
     </Card>
@@ -366,9 +354,9 @@ const Auth: React.FC = () => {
       <main className="flex-1 flex items-center justify-center px-4 pb-12">
         <div className={`animate-fade-up relative ${view === 'select-plan' ? 'w-full max-w-4xl' : 'w-full max-w-md'}`}>
           {view === 'main' && renderMainView()}
-          {view === 'employee-login' && renderOtpForm('employee')}
-          {view === 'specialist-login' && renderOtpForm('specialist')}
-          {view === 'company-login' && renderOtpForm('company')}
+          {view === 'employee-login' && renderLoginForm('employee')}
+          {view === 'specialist-login' && renderLoginForm('specialist')}
+          {view === 'company-login' && renderLoginForm('company')}
           {view === 'register' && renderRegister()}
           {view === 'select-plan' && renderPlanSelection()}
         </div>
