@@ -175,4 +175,4 @@ const AuthCallback: React.FC = () => {
 };
 
 export default AuthCallback;
-export { PENDING_REGISTER_KEY };
+
