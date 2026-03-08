@@ -90,7 +90,7 @@ const Auth: React.FC = () => {
     }
     setLoading(true);
     const redirectTo = `${getAuthBaseUrl()}/reset-password`;
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-reset-email`, { method: "POST", headers: { "Content-Type": "application/json", "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ email: email.trim() }) }); const error = res.ok ? null : { message: (await res.json()).error };
     setLoading(false);
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
