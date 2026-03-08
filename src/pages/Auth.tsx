@@ -79,6 +79,14 @@ const Auth: React.FC = () => {
       toast({ title: 'Login failed', description: error.message, variant: 'destructive' });
       return;
     }
+    const { data: { user: loggedInUser } } = await supabase.auth.getUser();
+    const uid = loggedInUser?.id;
+    if (uid) {
+      const { data: spec } = await supabase.from('specialists').select('id').eq('user_id', uid).maybeSingle();
+      if (spec) { navigate('/specialist-dashboard', { replace: true }); return; }
+      const { data: role } = await supabase.from('user_roles').select('role').eq('user_id', uid).maybeSingle();
+      if (role?.role === 'company_admin') { navigate('/admin', { replace: true }); return; }
+    }
     navigate('/dashboard', { replace: true });
   };
 
