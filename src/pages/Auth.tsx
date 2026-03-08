@@ -79,7 +79,7 @@ const Auth: React.FC = () => {
       toast({ title: 'Login failed', description: error.message, variant: 'destructive' });
       return;
     }
-    navigate('/', { replace: true });
+    navigate('/dashboard', { replace: true });
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
