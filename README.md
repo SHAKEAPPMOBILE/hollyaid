@@ -110,8 +110,8 @@ If the link fails right after clicking, some email providers (e.g. Microsoft Saf
 
 If the link fails even within 1–2 minutes:
 
-1. **Links open on Lovable (hollyaid.lovable.app) instead of Netlify**  
-   Supabase uses **Site URL** to build every link in auth emails (magic link, password reset). If Site URL is `https://hollyaid.lovable.app`, all those links will point to Lovable and you’ll see “expired or invalid” if that build or domain isn’t the one you use. Set **Site URL** to your real app URL (e.g. `https://hollyaidapp.netlify.app`) and add both `/auth/callback` and `/reset-password` to **Redirect URLs**.
+1. **Forgot password / magic link opens Lovable or "link expired"**  
+   Supabase uses **Site URL** to build every link in auth emails (magic link, password reset). If Site URL is `https://hollyaid.lovable.app`, all those links will point to Lovable and you’ll see “expired or invalid” if that build or domain isn’t the one you use. Set **Site URL** to your real app URL (e.g. `https://hollyaid.com`). In **Redirect URLs** add `https://hollyaid.com/auth/callback` and `https://hollyaid.com/reset-password`. Request a **new** reset email after changing; old emails still point to the old domain.
 
 2. **Redirect URL allow list**
    Supabase must allow your callback URL. In the Dashboard go to **Authentication** → **URL Configuration** and add the callback URL for **each** domain where users actually log in (match exactly, including `https`, no trailing slash). For example:
