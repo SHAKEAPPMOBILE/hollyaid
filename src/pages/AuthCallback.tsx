@@ -34,44 +34,6 @@ const AuthCallback: React.FC = () => {
         const refreshToken = hashParams.get('refresh_token');
         const hashType = hashParams.get('type');
         const hashError = hashParams.get('error');
-        const hashErrorDesc
-cd /Users/leonelmeneses/hollyaid && cat > src/pages/AuthCallback.tsx << 'ENDOFFILE'
-import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { getCompanyAdminAccess } from '@/lib/companyAdminAccess';
-import Logo from '@/components/Logo';
-import { Loader2 } from 'lucide-react';
-import { getEmailDomain } from '@/lib/supabase';
-import { isTestAccountEmail } from '@/lib/plans';
-
-export const PENDING_REGISTER_KEY = 'hollyaid_pending_register';
-
-export interface PendingRegister {
-  companyName: string;
-  fullName: string;
-  email: string;
-}
-
-const AuthCallback: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const handleCallback = async () => {
-      try {
-        const searchParams = new URLSearchParams(location.search);
-        const code = searchParams.get('code');
-        const tokenHash = searchParams.get('token_hash');
-        const type = searchParams.get('type');
-
-        const hash = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
-        const hashParams = new URLSearchParams(hash);
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
-        const hashType = hashParams.get('type');
-        const hashError = hashParams.get('error');
         const hashErrorDesc = hashParams.get('error_description');
 
         if (hashError) {
