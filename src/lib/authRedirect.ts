@@ -5,6 +5,4 @@ export const getAuthBaseUrl = (): string => {
   return env || PRODUCTION_URL;
 };
 
-export const getAuthRedirectUrl = (): string => {
-  return `${getAuthBaseUrl()}/auth/callback`;
-};
+export const getAuthRedirectUrl = (): string => `${getAuthBaseUrl()}/auth/callback`;
