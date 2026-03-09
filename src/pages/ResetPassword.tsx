@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { getRedirectPathForUser } from '@/lib/companyAdminAccess';
 import Logo from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,7 +57,7 @@ const ResetPassword: React.FC = () => {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.updateUser({
+    const { data: { user }, error } = await supabase.auth.updateUser({
       password: password
     });
 
@@ -66,14 +67,25 @@ const ResetPassword: React.FC = () => {
         description: error.message,
         variant: "destructive",
       });
-    } else {
-      setSuccess(true);
-      toast({
-        title: "Password updated!",
-        description: "Your password has been reset successfully.",
-      });
+      setLoading(false);
+      return;
     }
 
+    setSuccess(true);
+    toast({
+      title: "Password updated!",
+      description: "Taking you to your account…",
+    });
+
+    // Stay logged in and redirect to dashboard or complete-profile (no login page)
+    if (user) {
+      try {
+        const path = await getRedirectPathForUser(user.id, user.email);
+        navigate(path, { replace: true });
+      } catch {
+        navigate('/', { replace: true });
+      }
+    }
     setLoading(false);
   };
 
@@ -137,15 +149,9 @@ const ResetPassword: React.FC = () => {
                 <div className="text-center space-y-4">
                   <CheckCircle2 className="w-16 h-16 text-primary mx-auto" />
                   <p className="text-muted-foreground">
-                    You can now sign in with your new password.
+                    Taking you to your account…
                   </p>
-                  <Button 
-                    variant="wellness" 
-                    className="w-full"
-                    onClick={() => navigate('/auth')}
-                  >
-                    Go to Login
-                  </Button>
+                  <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
                 </div>
               ) : (
                 <form onSubmit={handleResetPassword} className="space-y-4">

@@ -80,9 +80,9 @@ export function OfflineActivitiesSection() {
             isVisible ? "animate-slide-in-up" : "opacity-0"
           }`}
         >
-          <p className="text-lg text-muted-foreground leading-relaxed">
-            We also offer off-line wellness activities like:
-          </p>
+          <h2 className="font-sans text-2xl font-bold text-foreground sm:text-3xl mb-4 text-balance">
+            We also offer offline wellness activities like:
+          </h2>
         </div>
 
         <div className="relative">

@@ -149,3 +149,31 @@ export const getCompanyAdminAccess = async (userId: string, userEmail?: string |
     error: null,
   };
 };
+
+/**
+ * Returns the path to redirect an authenticated user after login or password reset.
+ * Specialist -> specialist-dashboard; company admin (unpaid -> auth) -> dashboard or complete-profile; employee -> dashboard or complete-profile.
+ */
+export const getRedirectPathForUser = async (
+  userId: string,
+  email?: string | null
+): Promise<string> => {
+  const { data: specialist } = await supabase
+    .from('specialists')
+    .select('id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (specialist) return '/specialist-dashboard';
+
+  const { company, isCompanyAdmin } = await getCompanyAdminAccess(userId, email);
+  if (isCompanyAdmin && company?.subscription_status === 'unpaid') return '/auth';
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('job_title')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  return profile?.job_title ? '/dashboard' : '/complete-profile';
+};
