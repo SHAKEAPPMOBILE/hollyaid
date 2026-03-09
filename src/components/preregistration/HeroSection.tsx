@@ -46,13 +46,9 @@ export function HeroSection() {
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-8">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">
               <div className="text-center lg:text-left p-4 rounded-lg bg-card border border-border hover:border-primary/40 transition-all duration-300 animate-scale-hover shadow-sm">
-                <div className="text-2xl font-bold text-primary">500+</div>
-                <div className="text-sm text-muted-foreground">Companies Waiting</div>
-              </div>
-              <div className="text-center lg:text-left p-4 rounded-lg bg-card border border-border hover:border-secondary/40 transition-all duration-300 animate-scale-hover shadow-sm">
-                <div className="text-2xl font-bold text-secondary">50+</div>
+                <div className="text-2xl font-bold text-primary">50+</div>
                 <div className="text-sm text-muted-foreground">Target Countries</div>
               </div>
               <div className="text-center lg:text-left p-4 rounded-lg bg-card border border-border hover:border-accent/40 transition-all duration-300 animate-scale-hover shadow-sm">
