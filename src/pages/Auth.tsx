@@ -97,14 +97,17 @@ const Auth: React.FC = () => {
       return;
     }
     setLoading(true);
-    const redirectTo = `${getAuthBaseUrl()}/reset-password`;
-    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-reset-email`, { method: "POST", headers: { "Content-Type": "application/json", "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ email: email.trim() }) }); const error = res.ok ? null : { message: (await res.json()).error };
-    setLoading(false);
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      return;
+    try {
+      const redirectTo = `${getAuthBaseUrl()}/reset-password`;
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Check your email', description: 'We sent a link to set or reset your password.' });
+    } finally {
+      setLoading(false);
     }
-    toast({ title: 'Check your email', description: 'We sent a link to set or reset your password.' });
   };
 
   const handleRegisterWithPassword = async (e: React.FormEvent) => {
