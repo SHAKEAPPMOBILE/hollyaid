@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { isCompanyEmail, getEmailDomain } from '@/lib/supabase';
-import { getAuthBaseUrl } from '@/lib/authRedirect';
+import { getAuthRedirectUrl } from '@/lib/authRedirect';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import Logo from '@/components/Logo';
@@ -62,49 +62,49 @@ const Auth: React.FC = () => {
     setRegisteredUserId(null);
   };
 
-  const handleSignInWithPassword = async (e: React.FormEvent) => {
+  const handleSendMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
       toast({ title: 'Enter your email', variant: 'destructive' });
-      return;
-    }
-    if (!password) {
-      toast({ title: 'Enter your password', variant: 'destructive' });
-      return;
-    }
-    setLoading(true);
-    const { error } = await signIn(email.trim(), password);
-    setLoading(false);
-    if (error) {
-      toast({ title: 'Login failed', description: error.message, variant: 'destructive' });
-      return;
-    }
-    const { data: { user: loggedInUser } } = await supabase.auth.getUser();
-    const uid = loggedInUser?.id;
-    if (uid) {
-      const { data: spec } = await supabase.from('specialists').select('id').eq('user_id', uid).maybeSingle();
-      if (spec) { navigate('/specialist-dashboard', { replace: true }); return; }
-      const { data: role } = await supabase.from('user_roles').select('role').eq('user_id', uid).maybeSingle();
-      if (role?.role === 'company_admin') { navigate('/admin', { replace: true }); return; }
-    }
-    navigate('/dashboard', { replace: true });
-  };
-
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) {
-      toast({ title: 'Enter your email first', variant: 'destructive' });
       return;
     }
     setLoading(true);
     try {
-      const redirectTo = `${getAuthBaseUrl()}/reset-password`;
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
-      if (error) {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      let authorized = false;
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('is_authorized_email', {
+        check_email: normalizedEmail,
+      });
+      if (!rpcError) {
+        authorized = !!rpcResult;
+      } else if (rpcError.message?.includes('schema cache') || rpcError.message?.includes('Could not find the function')) {
+        // Fallback when app points at a different project or PostgREST cache is stale
+        const fallbackAllowed = ['info@hollyaid.com', 'contact@shakeapp.today'];
+        authorized = fallbackAllowed.includes(normalizedEmail);
+      } else {
+        toast({ title: 'Login failed', description: rpcError.message, variant: 'destructive' });
         return;
       }
-      toast({ title: 'Check your email', description: 'We sent a link to set or reset your password.' });
+      if (!authorized) {
+        toast({
+          title: 'Access denied',
+          description: 'Your email is not authorized to access this platform.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const { error } = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
+        options: { emailRedirectTo: getAuthRedirectUrl() },
+      });
+      if (error) {
+        toast({ title: 'Login failed', description: error.message, variant: 'destructive' });
+        return;
+      }
+      toast({
+        title: 'Check your email',
+        description: 'We sent you a login link. Click it to sign in.',
+      });
     } finally {
       setLoading(false);
     }
@@ -219,25 +219,16 @@ const Auth: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSignInWithPassword} className="space-y-4">
+          <form onSubmit={handleSendMagicLink} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="login-email">Email</Label>
               <Input id="login-email" type="email" placeholder="you@example.com" autoComplete="email"
                 value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="login-password">Password</Label>
-              <Input id="login-password" type="password" placeholder="••••••••" autoComplete="current-password"
-                value={password} onChange={(e) => setPassword(e.target.value)} required />
-            </div>
             <Button type="submit" variant="wellness" size="lg" className="w-full" disabled={loading}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <KeyRound size={16} className="mr-2" />}
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Sending link...' : 'Send login link'}
             </Button>
-            <button type="button" className="block w-full text-center text-sm text-muted-foreground hover:text-foreground underline"
-              onClick={handleForgotPassword} disabled={loading}>
-              Forgot password?
-            </button>
           </form>
         </CardContent>
       </Card>

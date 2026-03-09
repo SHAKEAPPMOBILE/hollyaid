@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      authorized_emails: {
+        Row: {
+          id: string
+          email: string
+          added_by_user_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          email: string
+          added_by_user_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          added_by_user_id?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       admin_activity_logs: {
         Row: {
           action_type: string
@@ -655,6 +676,10 @@ export type Database = {
       }
       is_specialist_owner: {
         Args: { _specialist_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_authorized_email: {
+        Args: { check_email: string }
         Returns: boolean
       }
       is_test_account: { Args: { _user_id: string }; Returns: boolean }

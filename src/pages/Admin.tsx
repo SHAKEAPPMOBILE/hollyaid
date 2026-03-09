@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   ArrowLeft, Plus, Users, 
   Edit, Trash2, UserPlus, Clock, CheckCircle, XCircle, Search,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Mail, Loader2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -64,6 +64,10 @@ const Admin: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [authorizedEmails, setAuthorizedEmails] = useState<{ id: string; email: string }[]>([]);
+  const [newAuthorizedEmail, setNewAuthorizedEmail] = useState('');
+  const [authorizedEmailsLoading, setAuthorizedEmailsLoading] = useState(false);
+  const [addEmailLoading, setAddEmailLoading] = useState(false);
 
   // Filter specialists based on search query
   const filteredSpecialists = specialists.filter(s => {
@@ -116,6 +120,9 @@ const Admin: React.FC = () => {
     if (data || isPlatformAdmin) {
       setIsAdmin(true);
       fetchSpecialists();
+      if (user.email && ALLOWED_INVITE_EMAILS.includes(user.email.toLowerCase())) {
+        fetchAuthorizedEmails();
+      }
     } else {
       toast({
         title: "Access denied",
@@ -136,6 +143,45 @@ const Admin: React.FC = () => {
     if (!error && data) {
       setSpecialists(data);
     }
+  };
+
+  const fetchAuthorizedEmails = async () => {
+    setAuthorizedEmailsLoading(true);
+    const { data, error } = await supabase
+      .from('authorized_emails')
+      .select('id, email')
+      .order('email');
+    setAuthorizedEmailsLoading(false);
+    if (!error && data) {
+      setAuthorizedEmails(data);
+    }
+  };
+
+  const addAuthorizedEmail = async () => {
+    const email = newAuthorizedEmail.trim().toLowerCase();
+    if (!email) return;
+    setAddEmailLoading(true);
+    const { error } = await supabase
+      .from('authorized_emails')
+      .insert({ email, added_by_user_id: user?.id ?? null });
+    setAddEmailLoading(false);
+    if (error) {
+      toast({ title: 'Failed to add email', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setNewAuthorizedEmail('');
+    fetchAuthorizedEmails();
+    toast({ title: 'Email added', description: `${email} can now log in.` });
+  };
+
+  const removeAuthorizedEmail = async (id: string, email: string) => {
+    const { error } = await supabase.from('authorized_emails').delete().eq('id', id);
+    if (error) {
+      toast({ title: 'Failed to remove email', description: error.message, variant: 'destructive' });
+      return;
+    }
+    fetchAuthorizedEmails();
+    toast({ title: 'Email removed', description: `${email} can no longer log in.` });
   };
 
   // Log admin activity and send notifications for critical actions
@@ -663,6 +709,82 @@ const Admin: React.FC = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Authorized Emails - only visible to platform admins */}
+        {canInviteSpecialists && (
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail size={20} />
+                Authorized Emails
+              </CardTitle>
+              <CardDescription>
+                Only these emails can log in. Add or remove emails to control access.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  type="email"
+                  placeholder="Add email (e.g. user@company.com)"
+                  value={newAuthorizedEmail}
+                  onChange={(e) => setNewAuthorizedEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addAuthorizedEmail())}
+                  className="flex-1"
+                />
+                <Button
+                  variant="wellness"
+                  onClick={addAuthorizedEmail}
+                  disabled={!newAuthorizedEmail.trim() || addEmailLoading}
+                >
+                  {addEmailLoading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                  Add
+                </Button>
+              </div>
+              {authorizedEmailsLoading ? (
+                <div className="flex items-center gap-2 text-muted-foreground py-4">
+                  <Loader2 size={16} className="animate-spin" />
+                  Loading...
+                </div>
+              ) : authorizedEmails.length === 0 ? (
+                <p className="text-muted-foreground py-4">No authorized emails yet.</p>
+              ) : (
+                <div className="border rounded-lg divide-y">
+                  {authorizedEmails.map(({ id, email }) => (
+                    <div key={id} className="flex items-center justify-between px-4 py-3">
+                      <span className="font-mono text-sm">{email}</span>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-destructive">
+                            <Trash2 size={14} />
+                            Remove
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove {email}?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This email will no longer be able to log in.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => removeAuthorizedEmail(id, email)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Remove
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Payout Requests & Activity Log - only visible to authorized emails */}
         {canInviteSpecialists && (
