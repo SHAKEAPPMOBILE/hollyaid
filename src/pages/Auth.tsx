@@ -155,6 +155,35 @@ const Auth: React.FC = () => {
         }
       }
 
+      // Specialists: ensure specialist record and role exist, then go to specialist dashboard
+      if (type === 'specialist') {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (currentUser) {
+          await supabase.from('user_roles').upsert(
+            { user_id: currentUser.id, role: 'specialist' },
+            { onConflict: 'user_id,role' }
+          );
+          const { data: existing } = await supabase
+            .from('specialists')
+            .select('id')
+            .eq('user_id', currentUser.id)
+            .maybeSingle();
+          if (!existing) {
+            const fullName = currentUser.user_metadata?.full_name ?? currentUser.email?.split('@')[0] ?? 'Specialist';
+            await supabase.from('specialists').insert({
+              user_id: currentUser.id,
+              email: normalizedEmail,
+              full_name: fullName,
+              specialty: 'Wellness',
+              is_active: true,
+            });
+          }
+        }
+        toast({ title: 'Welcome!', description: 'You are now signed in.' });
+        navigate('/specialist-dashboard');
+        return;
+      }
+
       toast({ title: 'Welcome!', description: 'You are now signed in.' });
       navigate('/');
     } finally {
