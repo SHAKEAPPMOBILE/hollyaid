@@ -68,6 +68,14 @@ const Auth: React.FC = () => {
       toast({ title: 'Enter your email', variant: 'destructive' });
       return;
     }
+    if (type === 'employee' && !isCompanyEmail(normalizedEmail)) {
+      toast({
+        title: 'Use your company email',
+        description: 'Employees must sign in with a company email (e.g. john@company.com).',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!pin) {
       toast({ title: 'Enter your PIN', variant: 'destructive' });
       return;
