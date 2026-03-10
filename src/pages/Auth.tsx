@@ -86,7 +86,7 @@ const Auth: React.FC = () => {
       let { error: signInError } = await signIn(normalizedEmail, internalPassword);
       if (signInError) {
         const { error: signUpError } = await signUp(normalizedEmail, internalPassword, normalizedEmail.split('@')[0]);
-        if (signUpError) { toast({ title: 'Login failed', description: signUpError.message, variant: 'destructive' }); return; }
+        if (signUpError && !signUpError.message.includes('already registered')) { toast({ title: 'Login failed', description: signUpError.message, variant: 'destructive' }); return; }
         const { error: retryError } = await signIn(normalizedEmail, internalPassword);
         if (retryError) { toast({ title: 'Login failed', description: retryError.message, variant: 'destructive' }); return; }
       }
