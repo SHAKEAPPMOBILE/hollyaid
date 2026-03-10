@@ -46,7 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         data: {
           full_name: fullName,
         },
-        emailRedirectTo: getAuthRedirectUrl(),
+        // no email redirect needed
       },
     });
     return { error: error as Error | null };
