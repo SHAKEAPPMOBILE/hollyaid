@@ -1,4 +1,3 @@
-curl -o /Users/leonelmeneses/hollyaid/src/pages/Auth.tsx https://raw.githubusercontent.com/SHAKEAPPMOBILE/hollyaid/main/src/pages/Auth.tsx 2>/dev/null; echo "ignore that" && cat > /Users/leonelmeneses/hollyaid/src/pages/Auth.tsx << 'ENDOFFILE'
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { isCompanyEmail, getEmailDomain } from '@/lib/supabase';
