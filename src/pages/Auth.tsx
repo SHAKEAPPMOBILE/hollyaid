@@ -63,36 +63,95 @@ const Auth: React.FC = () => {
   const handlePinLogin = async (e: React.FormEvent, type: 'employee' | 'specialist' | 'company') => {
     e.preventDefault();
     const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail) { toast({ title: 'Enter your email', variant: 'destructive' }); return; }
-    if (!pin) { toast({ title: 'Enter your PIN', variant: 'destructive' }); return; }
-    if (pin !== ROLE_PINS[type]) {
-      toast({ title: 'Wrong PIN', description: 'The PIN you entered is incorrect.', variant: 'destructive' });
+
+    if (!normalizedEmail) {
+      toast({ title: 'Enter your email', variant: 'destructive' });
       return;
     }
+    if (!pin) {
+      toast({ title: 'Enter your PIN', variant: 'destructive' });
+      return;
+    }
+    if (pin !== ROLE_PINS[type]) {
+      toast({
+        title: 'Wrong PIN',
+        description: 'The PIN you entered is incorrect.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      let authorized = false;
-      const { data: rpcResult, error: rpcError } = await supabase.rpc('is_authorized_email', { check_email: normalizedEmail });
-      if (!rpcError) { authorized = !!rpcResult; }
-      else {
-        const fallbackAllowed = ['info@hollyaid.com', 'contact@shakeapp.today', 'leoneltelesmeneses@gmail.com'];
-        authorized = fallbackAllowed.includes(normalizedEmail);
-      }
-      if (!authorized) {
-        toast({ title: 'Access denied', description: 'Your email is not authorized to access this platform.', variant: 'destructive' });
-        return;
-      }
       const internalPassword = `hollyaid_${type}_${ROLE_PINS[type]}_internal`;
+
+      // Try sign in first
       let { error: signInError } = await signIn(normalizedEmail, internalPassword);
+
       if (signInError) {
-        const { error: signUpError } = await signUp(normalizedEmail, internalPassword, normalizedEmail.split('@')[0]);
-        if (signUpError && !signUpError.message.includes('already registered')) { toast({ title: 'Login failed', description: signUpError.message, variant: 'destructive' }); return; }
+        // Account doesn't exist — create it
+        const { error: signUpError } = await signUp(
+          normalizedEmail,
+          internalPassword,
+          normalizedEmail.split('@')[0]
+        );
+
+        if (signUpError && !signUpError.message.includes('already registered')) {
+          toast({
+            title: 'Login failed',
+            description: signUpError.message,
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        // Sign in after signup
         const { error: retryError } = await signIn(normalizedEmail, internalPassword);
-        if (retryError) { toast({ title: 'Login failed', description: retryError.message, variant: 'destructive' }); return; }
+        if (retryError) {
+          toast({
+            title: 'Login failed',
+            description: retryError.message,
+            variant: 'destructive',
+          });
+          return;
+        }
       }
+
+      // For companies, check subscription after successful PIN login
+      if (type === 'company') {
+        const domain = normalizedEmail.split('@')[1];
+        const { data: company, error: companyError } = await supabase
+          .from('companies')
+          .select('subscription_status')
+          .eq('email_domain', domain)
+          .single();
+
+        if (companyError) {
+          toast({
+            title: 'Could not verify subscription',
+            description: companyError.message,
+            variant: 'destructive',
+          });
+          await supabase.auth.signOut();
+          return;
+        }
+
+        if (!company || company.subscription_status === 'unpaid') {
+          toast({
+            title: 'Subscription required',
+            description: 'Your company needs an active subscription to access the platform.',
+            variant: 'destructive',
+          });
+          await supabase.auth.signOut();
+          return;
+        }
+      }
+
       toast({ title: 'Welcome!', description: 'You are now signed in.' });
       navigate('/');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRegisterWithPassword = async (e: React.FormEvent) => {
